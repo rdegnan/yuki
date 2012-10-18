@@ -1,0 +1,23 @@
+# OASIS_START
+# DO NOT EDIT (digest: 3182acdd3e17dadc6498d1a2898128ef)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library yuki
+"src/yuki.cmxs": use_yuki
+<src/*.ml{,i}>: pkg_lwt
+<src/*.ml{,i}>: pkg_lwt.unix
+<src/*.ml{,i}>: pkg_lwt.syntax
+<src/*.ml{,i}>: pkg_riak
+# OASIS_STOP
+<src/*>: syntax_camlp4o, pkg_lwt.syntax

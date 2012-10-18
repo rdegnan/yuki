@@ -1,0 +1,13 @@
+OASISFormat: 0.3
+Name:        yuki
+Version:     0.1
+Synopsis:    Functional data structures for Riak
+Authors:     Ryland Degnan
+License:     BSD3
+Plugins:     META (0.3), DevFiles (0.3)
+
+Library "yuki"
+  Path:       src
+  BuildTools: ocamlbuild
+  Modules:    Yuki
+  BuildDepends: lwt, lwt.unix, lwt.syntax, riak
