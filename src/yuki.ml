@@ -38,19 +38,21 @@ module SkewBinaryRandomAccessList : RANDOM_ACCESS_LIST =
   functor (S : STRINGABLE) -> struct
     type ra_list = (int * string) list (* integer is the weight of the tree *)
 
+    let pool = Lwt_pool.create 100 (fun () -> riak_connect ip port riak_connection_defaults)
+
     let empty = []
     let is_empty ts = ts = []
 
     let links = List.map (fun key -> { riak_link_defaults with key = Some key })
     let keys = List.map (function { key = Some key } -> key | _ -> raise Not_found)
 
-    let put x ts = riak_exec ip port (fun conn ->
+    let put x ts = Lwt_pool.use pool (fun conn ->
       match_lwt riak_put_raw conn bucket None ~links:(links ts) (S.to_string x) [Put_return_head true] None with
         | Some { obj_key = Some key } -> return key
         | _ -> raise Not_found
     )
 
-    let get key = riak_exec ip port (fun conn ->
+    let get key = Lwt_pool.use pool (fun conn ->
       match_lwt riak_get conn bucket key [] with
         | Some { obj_value = Some x; obj_links = links } -> return (S.of_string x, keys links)
         | _ -> raise Not_found
