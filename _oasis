@@ -5,9 +5,10 @@ Synopsis:    Functional data structures for Riak
 Authors:     Ryland Degnan
 License:     BSD3
 Plugins:     META (0.3), DevFiles (0.3)
+BuildTools:  ocamlbuild
 
 Library "yuki"
-  Path:       src
-  BuildTools: ocamlbuild
-  Modules:    Yuki
-  BuildDepends: lwt, lwt.unix, lwt.syntax, riak
+  Path: src
+  Modules: Yuki, Make
+  InternalModules: Yuki_array, Yuki_types
+  BuildDepends: lwt, lwt.unix, lwt.syntax, riak, atdgen

@@ -1,0 +1,1 @@
+type rlist = (int * string) list (* integer is the weight of the tree *)
