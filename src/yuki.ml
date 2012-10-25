@@ -1,54 +1,52 @@
-open Lwt
-open Riak
+open Yuki_types
 
-module Make(Conn:Make.Conn)(Obj:Make.Obj) = struct
-  module Client = struct
-    type t = Obj.t
+module Make(Conn:Make.Conn) = struct
+  module RandomAccessList(Elem:Make.Elem) = struct
+    module Client = Client_head.Make(Conn)(struct
+      type t = rlist
+      let of_string x = rlist_of_string x
+      let to_string x = string_of_rlist x
+      let bucket = Elem.bucket
+    end)
 
-    let keys = List.map (function { key = Some key } -> key | _ -> raise Not_found)
-    let links = List.map (fun key -> { riak_link_defaults with key = Some key })
+    module SkewBinary = struct
+      module Impl = Yuki_rlist.Make(Conn)(Elem)
 
-    let get key = Lwt_pool.use Conn.pool (fun conn ->
-      match_lwt riak_get conn Conn.bucket key [] with
-        | Some { obj_value = Some x; obj_links = links } -> return (Obj.of_string x, keys links)
-        | _ -> raise Not_found
-    )
+      let cons key x = Client.modify_head key (fun conn ts -> Impl.cons conn x ts)
+      let head key = Client.with_head key (fun conn ts -> Impl.head conn ts)
+      let tail key = Client.modify_head key (fun conn ts -> Impl.tail conn ts)
 
-    let put x ts = Lwt_pool.use Conn.pool (fun conn ->
-      match_lwt riak_put_raw conn Conn.bucket None ~links:(links ts) (Obj.to_string x) [Put_return_head true] None with
-        | Some { obj_key = Some key } -> return key
-        | _ -> raise Not_found
-    )
+      let lookup key i = Client.with_head key (fun conn ts -> Impl.lookup conn i ts)
+      let update key i y = Client.modify_head key (fun conn ts -> Impl.update conn i y ts)
+
+      let page key i n = Client.with_head key (fun conn ts -> Impl.page conn i n ts)
+    end
+
+    include SkewBinary
   end
 
-  module Array = struct
-    module Impl = Yuki_array.Make(Client)
+  (*module Heap(Elem:Make.Ord) = struct
+    module Client = Client.Make(struct
+      type t = node
+      let of_string x = node_of_string x
+      let to_string x = string_of_node x
+      let bucket = Elem.bucket
+      let pool = Elem.pool
+    end)(struct
+      type t = heap
+      let of_string x = heap_of_string x
+      let to_string x = string_of_heap x
+    end)
 
-    let get_head conn key = match_lwt riak_get conn Conn.bucket key [] with
-      | Some { obj_value = Some x; obj_vclock = v } -> return (Yuki_types.rlist_of_string x, v)
-      | _ -> return ([], None)
+    module SkewBinomial = struct
+      module Impl = Yuki_heap.Make(Client)
 
-    let put_head conn key x v =
-      lwt _ = riak_put_raw conn Conn.bucket (Some key) (Yuki_types.string_of_rlist x) [] v in
-      return ()
+      let insert key x = Client.modify_head key (fun conn ts -> Impl.insert conn x ts)
 
-    let read_head key fn = Lwt_pool.use Conn.pool (fun conn ->
-      get_head conn key >>= fn
-    )
+      let find_min key = Client.with_head key (fun conn ts -> Impl.find_min conn ts)
+      let delete_min key = Client.modify_head key (fun conn ts -> Impl.delete_min conn ts)
+    end
 
-    let write_head key fn = Lwt_pool.use Conn.pool (fun conn ->
-      lwt (head, vclock) = get_head conn key in
-      lwt head' = fn head in
-      put_head conn key head' vclock
-    )
-
-    let cons key x = write_head key (Impl.cons x)
-    let head key = read_head key (fun (x, _) -> Impl.head x)
-    let tail key = write_head key Impl.tail
-
-    let lookup key i = read_head key (fun (x, _) -> Impl.lookup i x)
-    let update key i y = write_head key (Impl.update i y)
-
-    let page key i n = read_head key (fun (x, _) -> Impl.page i n x)
-  end
+    include SkewBinomial
+  end*)
 end
