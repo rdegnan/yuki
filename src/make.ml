@@ -1,7 +1,7 @@
 open Riak
 
 module type Conn = sig
-  val pool : riak_connection Lwt_pool.t
+  val with_connection : (riak_connection -> 'a Lwt.t) -> 'a Lwt.t
 end
 
 module type Stringable = sig

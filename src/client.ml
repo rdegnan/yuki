@@ -12,14 +12,14 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let keys = List.map (function { Riak.key = Some key } -> key | _ -> raise Not_found)
   let links = List.map (fun key -> { riak_link_defaults with Riak.key = Some key })
 
-  let get key = Lwt_pool.use Conn.pool (fun conn ->
+  let get key = Conn.with_connection (fun conn ->
     match_lwt riak_get conn Elem.bucket key [] with
       | Some { obj_key = Some key; obj_value = Some value; obj_vclock = Some vclock; obj_links = links } ->
           return { key = key; value = Elem.of_string value; vclock = vclock; links = keys links }
       | _ -> raise Not_found
   )
 
-  let put ?key ?v x ts = Lwt_pool.use Conn.pool (fun conn ->
+  let put ?key ?v x ts = Conn.with_connection (fun conn ->
     match_lwt riak_put_raw conn Elem.bucket key ~links:(links ts) (Elem.to_string x) [Put_return_head true] v with
       | Some { obj_key = Some key; obj_vclock = Some vclock } ->
           return { key = key; value = x; vclock = vclock; links = ts }
