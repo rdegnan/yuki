@@ -12,11 +12,11 @@ module Make(Conn:Make.Conn) : sig
     val page : string -> int -> int -> Elem.t list Lwt.t
   end
 
-  (*module Heap(Elem:Make.Ord) : sig
+  module Heap(Elem:Make.Ord) : sig
     val insert : string -> Elem.t -> unit Lwt.t
 
     val find_min : string -> Elem.t Lwt.t
     val delete_min : string -> unit Lwt.t
-  (* raises Empty if heap is empty *)
-  end*)
+    (* find_min and delete_min raise Empty if heap is empty *)
+  end
 end

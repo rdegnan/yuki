@@ -7,65 +7,107 @@ exception Subscript
 
 module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module Client = Client.Make(Conn)(struct
-    type t = node
-    let of_string x = node_of_string x
-    let to_string x = string_of_node x
+    type t = int * Elem.t * Elem.t list
+    let of_string x = let (r, x, xs) = node_of_string x in (r, Elem.of_string x, List.map Elem.of_string xs)
+    let to_string (r, x, xs) = string_of_node (r, Elem.to_string x, List.map Elem.to_string xs)
     let bucket = Elem.bucket
   end)
 
-  let rank (r, _, _, _) = r
-  let root (_, x, _, _) = x
+  open Client
 
-  let link conn ((r, x1, xs1, c1) as t1) ((_, x2, xs2, c2) as t2) =
-    if Elem.compare x1 x2 <= 0 then
-      Client.put conn (r + 1, Elem.to_string x1, xs1) (t2 :: c1)
-    else
-      Client.put conn (r + 1, Elem.to_string x2, xs2) (t1 :: c2)
+  let node conn (r, x, xs, c) = put conn (r, x, xs) c
 
-  let skew_link x t1 t2 =
-    let (r, y, ys, c) = link t1 t2 in
+  let key { key = t } = t
+  let rank { value = (r, _, _) } = r
+  let root { value = (_, x, _) } = x
+
+  let link' { key = t1; value = (r, x1, xs1); links = c1 } { key = t2; value = (_, x2, xs2); links = c2 } =
+    if Elem.compare x1 x2 <= 0 then (r + 1, x1, xs1, t2 :: c1)
+    else (r + 1, x2, xs2, t1 :: c2)
+  let link conn t1 t2 = node conn (link' t1 t2)
+
+  let skew_link' x t1 t2 =
+    let (r, y, ys, c) = link' t1 t2 in
     if Elem.compare x y <= 0 then (r, x, y :: ys, c)
     else (r, y, x :: ys, c)
+  let skew_link conn x t1 t2 = node conn (skew_link' x t1 t2)
 
-  let rec ins_tree t = function
-    | [] -> [t]
+  let rec ins_tree conn t = function
+    | [] -> return [key t]
     | t' :: ts ->
-        if rank t < rank t' then t :: t' :: ts
-        else ins_tree (link t t') ts
+        lwt t' = get conn t' in
+        if rank t < rank t' then
+          return (key t :: key t' :: ts)
+        else
+          lwt t = link conn t t' in
+          ins_tree conn t ts
 
-  let rec merge_trees ts1 ts2 = match ts1, ts2 with
-    | _, [] -> ts1
-    | [], _ -> ts2
-    | t1 :: ts1', t2 :: ts2' ->
-        if rank t1 < rank t2 then t1 :: merge_trees ts1' ts2
-        else if rank t2 < rank t1 then t2 :: merge_trees ts1 ts2'
-        else ins_tree (link t1 t2) (merge_trees ts1' ts2')
+  let rec merge_trees conn ts1 ts2 = match ts1, ts2 with
+    | _, [] -> return ts1
+    | [], _ -> return ts2
+    | (t1 :: ts1'), (t2 :: ts2') ->
+        lwt t1' = get conn t1
+        and t2' = with_connection (fun conn -> get conn t2) in
+        if rank t1' < rank t2' then
+          lwt ts = merge_trees conn ts1' ts2 in
+          return (t1 :: ts)
+        else if rank t2' < rank t1' then
+          lwt ts = merge_trees conn ts1 ts2' in
+          return (t2 :: ts)
+        else
+          lwt t = link conn t1' t2'
+          and ts = with_connection (fun conn -> merge_trees conn ts1' ts2') in
+          ins_tree conn t ts
 
-  let normalize = function
-    | [] -> []
-    | t :: ts -> ins_tree t ts
-
-  let insert x = function
-    | t1 :: t2 :: rest as ts ->
-        if rank t1 = rank t2 then skew_link x t1 t2 :: rest
-        else (0, x, [], []) :: ts
-    | ts -> (0, x, [], []) :: ts
-
-  let merge ts1 ts2 = merge_trees (normalize ts1) (normalize ts2)
-
-  let rec remove_min_tree = function
-    | [] -> raise Empty
-    | [t] -> t, []
+  let normalize conn = function
+    | [] -> return []
     | t :: ts ->
-        let t', ts' = remove_min_tree ts in
-        if Elem.compare (root t) (root t') <= 0 then t, ts else t', t :: ts'
+        lwt t' = get conn t in
+        ins_tree conn t' ts
 
-  let find_min ts = root (fst (remove_min_tree ts))
+  let insert conn x = function
+    | t1 :: t2 :: rest as ts ->
+        lwt t1' = get conn t1
+        and t2' = with_connection (fun conn -> get conn t2) in
+        if rank t1' = rank t2' then
+          lwt t = skew_link conn x t1' t2' in
+          return (key t :: rest)
+        else
+          lwt t = node conn (0, x, [], []) in
+          return (key t :: ts)
+    | ts ->
+        lwt t = node conn (0, x, [], []) in
+        return (key t :: ts)
 
-  let delete_min ts =
-    let (_, x, xs, ts1), ts2 = remove_min_tree ts in
-      let rec insert_all ts = function
-        | [] -> ts
-        | x :: xs' -> insert_all (insert x ts) xs' in
-    insert_all (merge (List.rev ts1) ts2) xs
+  let merge conn ts1 ts2 =
+    lwt ts1' = normalize conn ts1
+    and ts2' = normalize conn ts2 in
+    merge_trees conn ts1' ts2'
+
+  let rec remove_min_tree conn = function
+    | [] -> raise Empty
+    | [t] ->
+        lwt t = get conn t in
+        return (t, [])
+    | t :: ts ->
+        lwt t = get conn t
+        and t', ts' = remove_min_tree conn ts in
+        if Elem.compare (root t) (root t') <= 0 then
+          return (t, ts)
+        else
+          return (t', key t :: ts')
+
+  let find_min conn ts =
+    lwt t = remove_min_tree conn ts in
+    return (root (fst t))
+
+  let delete_min conn ts =
+    lwt { value = (_, _, xs); links = ts1 }, ts2 = remove_min_tree conn ts in
+    let rec insert_all ts = function
+      | [] -> return ts
+      | x :: xs' ->
+          lwt ts' = insert conn x ts in
+          insert_all ts' xs' in
+    lwt ts = merge conn (List.rev ts1) ts2 in
+    insert_all ts xs
 end

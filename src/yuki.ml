@@ -25,21 +25,16 @@ module Make(Conn:Make.Conn) = struct
     include SkewBinary
   end
 
-  (*module Heap(Elem:Make.Ord) = struct
-    module Client = Client.Make(struct
-      type t = node
-      let of_string x = node_of_string x
-      let to_string x = string_of_node x
-      let bucket = Elem.bucket
-      let pool = Elem.pool
-    end)(struct
+  module Heap(Elem:Make.Ord) = struct
+    module Client = Client_head.Make(Conn)(struct
       type t = heap
       let of_string x = heap_of_string x
       let to_string x = string_of_heap x
+      let bucket = Elem.bucket
     end)
 
     module SkewBinomial = struct
-      module Impl = Yuki_heap.Make(Client)
+      module Impl = Yuki_heap.Make(Conn)(Elem)
 
       let insert key x = Client.modify_head key (fun conn ts -> Impl.insert conn x ts)
 
@@ -48,5 +43,5 @@ module Make(Conn:Make.Conn) = struct
     end
 
     include SkewBinomial
-  end*)
+  end
 end
