@@ -1,47 +1,47 @@
+open Lwt
 open Yuki_types
 
 module Make(Conn:Make.Conn) = struct
   module RandomAccessList(Elem:Make.Elem) = struct
-    module Client = Client_head.Make(Conn)(struct
+    module Impl = Yuki_rlist.Make(Conn)(Elem)
+    module Client = Client.Make(Conn)(struct
       type t = rlist
       let of_string x = rlist_of_string x
       let to_string x = string_of_rlist x
       let bucket = Elem.bucket
     end)
 
-    module SkewBinary = struct
-      module Impl = Yuki_rlist.Make(Conn)(Elem)
+    let cons key x =
+      try_lwt Client.write key (Impl.cons x)
+      with Not_found ->
+        lwt t = Impl.cons x [] in
+        Client.put ~key t [] >> return ()
 
-      let cons key x = Client.modify_head key (fun conn ts -> Impl.cons conn x ts)
-      let head key = Client.with_head key (fun conn ts -> Impl.head conn ts)
-      let tail key = Client.modify_head key (fun conn ts -> Impl.tail conn ts)
+    let head key = Client.read key Impl.head
+    let tail key = Client.write key Impl.tail
 
-      let lookup key i = Client.with_head key (fun conn ts -> Impl.lookup conn i ts)
-      let update key i y = Client.modify_head key (fun conn ts -> Impl.update conn i y ts)
+    let lookup key i = Client.read key (Impl.lookup i)
+    let update key i y = Client.write key (Impl.update i y)
 
-      let page key i n = Client.with_head key (fun conn ts -> Impl.page conn i n ts)
-    end
-
-    include SkewBinary
+    let page key i n = Client.read key (Impl.page i n)
   end
 
   module Heap(Elem:Make.Ord) = struct
-    module Client = Client_head.Make(Conn)(struct
+    module Impl = Yuki_heap.Make(Conn)(Elem)
+    module Client = Client.Make(Conn)(struct
       type t = heap
       let of_string x = heap_of_string x
       let to_string x = string_of_heap x
       let bucket = Elem.bucket
     end)
 
-    module SkewBinomial = struct
-      module Impl = Yuki_heap.Make(Conn)(Elem)
+    let insert key x =
+      try_lwt Client.write key (Impl.insert x)
+      with Not_found ->
+        lwt t = Impl.insert x [] in
+        Client.put ~key t [] >> return ()
 
-      let insert key x = Client.modify_head key (fun conn ts -> Impl.insert conn x ts)
-
-      let find_min key = Client.with_head key (fun conn ts -> Impl.find_min conn ts)
-      let delete_min key = Client.modify_head key (fun conn ts -> Impl.delete_min conn ts)
-    end
-
-    include SkewBinomial
+    let find_min key = Client.read key Impl.find_min
+    let delete_min key = Client.write key Impl.delete_min
   end
 end
