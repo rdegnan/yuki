@@ -1,4 +1,4 @@
-type rlist = (int * string) list
+type array = (int * string) list
 
 type node = (int * string * string list)
 type heap = string list

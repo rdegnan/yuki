@@ -1,6 +1,6 @@
 open Lwt
 open Riak
-open Yuki_types
+open Yuki_j
 
 exception Empty
 

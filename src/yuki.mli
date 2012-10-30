@@ -1,5 +1,5 @@
 module Make(Conn:Make.Conn) : sig
-  module RandomAccessList(Elem:Make.Elem) : sig
+  module Array(Elem:Make.Elem) : sig
     val cons : string -> Elem.t -> unit Lwt.t
     val head : string -> Elem.t Lwt.t
     val tail : string -> unit Lwt.t

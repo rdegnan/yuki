@@ -1,13 +1,13 @@
 open Lwt
-open Yuki_types
+open Yuki_j
 
 module Make(Conn:Make.Conn) = struct
-  module RandomAccessList(Elem:Make.Elem) = struct
-    module Impl = Yuki_rlist.Make(Conn)(Elem)
+  module Array(Elem:Make.Elem) = struct
+    module Impl = Yuki_array.Make(Conn)(Elem)
     module Client = Client.Make(Conn)(struct
-      type t = rlist
-      let of_string x = rlist_of_string x
-      let to_string x = string_of_rlist x
+      type t = array
+      let of_string x = array_of_string x
+      let to_string x = string_of_array x
       let bucket = Elem.bucket
     end)
 
