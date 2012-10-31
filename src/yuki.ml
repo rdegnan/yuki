@@ -42,6 +42,25 @@ module Make(Conn:Make.Conn) = struct
         Client.put ~key t [] >> return ()
 
     let find_min key = Client.read key Impl.find_min
-    let delete_min key = Client.write key Impl.delete_min
+    let delete_min key = Client.write' key Impl.delete_min (fun (x, ts) put ->
+      put ts [] >> return x
+    )
+  end
+
+  module BootstrappedHeap(Elem:Make.Ord) = struct
+    module Impl = Yuki_bootstrap.Make(Conn)(Elem)
+    module Client = Client.Make(Conn)(Impl.BootstrappedElem)
+
+    let insert key x =
+      try_lwt Client.write key (Impl.insert x)
+      with Not_found ->
+        Client.put ~key (x, []) [] >> return ()
+
+    let find_min key = Client.read key Impl.find_min
+    let delete_min key = Client.write' key Impl.delete_min (fun (x, ts) put ->
+      match ts with
+        | Some ts -> put ts [] >> return x
+        | None -> Client.delete key >> return x
+    )
   end
 end

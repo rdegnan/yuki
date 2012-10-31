@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3779440ffd280713608359638c04a09c)
+# DO NOT EDIT (digest: fb570ee5ae49fa3f7ea8728ee124d71c)
 Yuki
 Make
 Client
@@ -7,4 +7,5 @@ Yuki_t
 Yuki_j
 Yuki_array
 Yuki_heap
+Yuki_bootstrap
 # OASIS_STOP

@@ -7,6 +7,8 @@ type node = Yuki_t.node
 
 type heap = Yuki_t.heap
 
+type bootstrap = Yuki_t.bootstrap
+
 val write_array :
   Bi_outbuf.t -> array -> unit
   (** Output a JSON value of type {!array}. *)
@@ -66,4 +68,24 @@ val read_heap :
 val heap_of_string :
   string -> heap
   (** Deserialize JSON data of type {!heap}. *)
+
+val write_bootstrap :
+  Bi_outbuf.t -> bootstrap -> unit
+  (** Output a JSON value of type {!bootstrap}. *)
+
+val string_of_bootstrap :
+  ?len:int -> bootstrap -> string
+  (** Serialize a value of type {!bootstrap}
+      into a JSON string.
+      @param len specifies the initial length
+                 of the buffer used internally.
+                 Default: 1024. *)
+
+val read_bootstrap :
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> bootstrap
+  (** Input JSON data of type {!bootstrap}. *)
+
+val bootstrap_of_string :
+  string -> bootstrap
+  (** Deserialize JSON data of type {!bootstrap}. *)
 

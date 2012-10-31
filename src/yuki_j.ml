@@ -7,6 +7,8 @@ type node = Yuki_t.node
 
 type heap = Yuki_t.heap
 
+type bootstrap = Yuki_t.bootstrap
+
 let write__1 = (
   Ag_oj_run.write_list (
     fun ob x ->
@@ -198,3 +200,68 @@ let read_heap = (
 )
 let heap_of_string s =
   read_heap (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
+let write_bootstrap = (
+  fun ob x ->
+    Bi_outbuf.add_char ob '(';
+    (let x, _ = x in
+    (
+      Yojson.Safe.write_string
+    ) ob x
+    );
+    Bi_outbuf.add_char ob ',';
+    (let _, x = x in
+    (
+      write_heap
+    ) ob x
+    );
+    Bi_outbuf.add_char ob ')';
+)
+let string_of_bootstrap ?(len = 1024) x =
+  let ob = Bi_outbuf.create len in
+  write_bootstrap ob x;
+  Bi_outbuf.contents ob
+let read_bootstrap = (
+  fun p lb ->
+    Yojson.Safe.read_space p lb;
+    let std_tuple = Yojson.Safe.start_any_tuple p lb in
+    let len = ref 0 in
+    let end_of_tuple = ref false in
+    (try
+      let x0 =
+        let x =
+          (
+            Ag_oj_run.read_string
+          ) p lb
+        in
+        incr len;
+        Yojson.Safe.read_space p lb;
+        Yojson.Safe.read_tuple_sep2 p std_tuple lb;
+        x
+      in
+      let x1 =
+        let x =
+          (
+            read_heap
+          ) p lb
+        in
+        incr len;
+        (try
+          Yojson.Safe.read_space p lb;
+          Yojson.Safe.read_tuple_sep2 p std_tuple lb;
+        with Yojson.End_of_tuple -> end_of_tuple := true);
+        x
+      in
+      if not !end_of_tuple then (
+        try
+          while true do
+            Yojson.Safe.skip_json p lb;
+            Yojson.Safe.read_tuple_sep2 p std_tuple lb;
+          done
+        with Yojson.End_of_tuple -> ()
+      );
+      (x0, x1)
+    with Yojson.End_of_tuple ->
+      Ag_oj_run.missing_tuple_fields !len [ 0; 1 ]);
+)
+let bootstrap_of_string s =
+  read_bootstrap (Yojson.Safe.init_lexer ()) (Lexing.from_string s)

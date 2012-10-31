@@ -16,7 +16,6 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
 
   let node (r, x, xs, c) = put (r, x, xs) c
 
-  let key { key = t } = t
   let rank { value = (r, _, _) } = r
   let root { value = (_, x, _) } = x
 
@@ -32,11 +31,11 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   let skew_link x t1 t2 = node (skew_link' x t1 t2)
 
   let rec ins_tree t = function
-    | [] -> return [key t]
+    | [] -> return [t.key]
     | t' :: ts ->
         lwt t' = get t' in
         if rank t < rank t' then
-          return (key t :: key t' :: ts)
+          return (t.key :: t'.key :: ts)
         else
           lwt t = link t t' in
           ins_tree t ts
@@ -70,13 +69,13 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
         and t2' = get t2 in
         if rank t1' = rank t2' then
           lwt t = skew_link x t1' t2' in
-          return (key t :: rest)
+          return (t.key :: rest)
         else
           lwt t = node (0, x, [], []) in
-          return (key t :: ts)
+          return (t.key :: ts)
     | ts ->
         lwt t = node (0, x, [], []) in
-        return (key t :: ts)
+        return (t.key :: ts)
 
   let merge ts1 ts2 =
     lwt ts1' = normalize ts1
@@ -94,19 +93,20 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
         if Elem.compare (root t) (root t') <= 0 then
           return (t, ts)
         else
-          return (t', key t :: ts')
+          return (t', t.key :: ts')
 
   let find_min ts =
     lwt t = remove_min_tree ts in
     return (root (fst t))
 
   let delete_min ts =
-    lwt { value = (_, _, xs); links = ts1 }, ts2 = remove_min_tree ts in
+    lwt { value = (_, x, xs); links = ts1 }, ts2 = remove_min_tree ts in
     let rec insert_all ts = function
       | [] -> return ts
       | x :: xs' ->
           lwt ts' = insert x ts in
           insert_all ts' xs' in
     lwt ts = merge (List.rev ts1) ts2 in
-    insert_all ts xs
+    lwt ts' = insert_all ts xs in
+    return (x, ts')
 end

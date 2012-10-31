@@ -16,7 +16,15 @@ module Make(Conn:Make.Conn) : sig
     val insert : string -> Elem.t -> unit Lwt.t
 
     val find_min : string -> Elem.t Lwt.t
-    val delete_min : string -> unit Lwt.t
+    val delete_min : string -> Elem.t Lwt.t
+    (* find_min and delete_min raise Empty if heap is empty *)
+  end
+
+  module BootstrappedHeap(Elem:Make.Ord) : sig
+    val insert : string -> Elem.t -> unit Lwt.t
+
+    val find_min : string -> Elem.t Lwt.t
+    val delete_min : string -> Elem.t Lwt.t
     (* find_min and delete_min raise Empty if heap is empty *)
   end
 end

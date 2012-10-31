@@ -6,3 +6,5 @@ type array = (int * string) list
 type node = (int * string * string list)
 
 type heap = string list
+
+type bootstrap = (string * heap)

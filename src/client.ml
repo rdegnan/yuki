@@ -29,6 +29,10 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
       | _ -> raise Not_found
   )
 
+  let delete key = Conn.with_connection (fun conn ->
+    riak_del conn Elem.bucket key []
+  )
+
   let read key fn =
     lwt { value = x } = get key in
     fn x
@@ -37,4 +41,9 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     lwt { value = x; vclock = v } = get key in
     lwt x' = fn x in
     put ~key ~v x' [] >> return ()
+
+  let write' key fn fn' =
+    lwt { value = x; vclock = v } = get key in
+    lwt x' = fn x in
+    fn' x' (put ~key ~v)
 end
