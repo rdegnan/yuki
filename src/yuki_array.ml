@@ -6,14 +6,10 @@ exception Subscript
 
 module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   module Client = Client.Make(Conn)(Elem)
-
   open Client
 
-  let leaf x =
-    lwt t = put x [] in return t.key
-
-  let node x t1 t2 =
-    lwt t = put x [t1; t2] in return t.key
+  let leaf x = lwt t = put x [] in return t.key
+  let node x t1 t2 = lwt t = put x [t1; t2] in return t.key
 
   let cons x = function
     | (w1, t1) :: (w2, t2) :: ts' as ts ->

@@ -4,8 +4,7 @@ open Yuki_j
 
 exception Empty
 
-module Make(Conn:Make.Conn)(Elem:Make.Ord) =
-struct
+module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module BootstrappedElem = struct
       type t = Elem.t * heap
       let compare (x, _) (y, _) = Elem.compare x y
