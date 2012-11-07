@@ -6,32 +6,49 @@ exception Empty
 
 module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module BootstrappedElem = struct
-      type t = Elem.t * heap
-      let compare (x, _) (y, _) = Elem.compare x y
-      let of_string x = let (x, p) = bootstrap_of_string x in (Elem.of_string x, p)
-      let to_string (x, p) = string_of_bootstrap (Elem.to_string x, p)
+      type t = E | H of (Elem.t * heap)
+      let compare x y = match x, y with
+        | H (x, _), H (y, _) -> Elem.compare x y
+        | _ -> raise Not_found
+      let of_string x = match bootstrap_of_string x with
+        | `H (x, p) -> H (Elem.of_string x, p)
+        | `E -> E
+      let to_string x = string_of_bootstrap (match x with
+        | H (x, p) -> `H (Elem.to_string x, p)
+        | E -> `E)
       let bucket = Elem.bucket
   end
 
   module PrimH = Yuki_heap.Make(Conn)(BootstrappedElem)
+  open BootstrappedElem (* expose E and H constructors *)
 
-  let merge ((x, p1) as h1) ((y, p2) as h2) =
-    if Elem.compare x y <= 0 then
-      lwt p = PrimH.insert h2 p1 in
-      return (x, p)
-    else
-      lwt p = PrimH.insert h1 p2 in
-      return (y, p)
+  let empty = E
+  let is_empty = function E -> true | _ -> false
 
-  let insert x h = merge (x, []) h
+  let merge h1 h2 = match h1, h2 with
+    | E, h -> return h
+    | h, E -> return h
+    | H (x, p1), H (y, p2) ->
+        if Elem.compare x y <= 0 then
+          lwt p = PrimH.insert h2 p1 in
+          return (H (x, p))
+        else
+          lwt p = PrimH.insert h1 p2 in
+          return (H (y, p))
 
-  let find_min (x, _) = return x
+  let insert x h = merge (H (x, PrimH.empty)) h
 
-  let delete_min (x, p) = match p with
-    | [] ->
-        return (x, None)
-    | _ ->
-        lwt ((y, p1), p2) = PrimH.delete_min p in
-        lwt p' = PrimH.merge p1 p2 in
-        return (x, Some (y, p'))
+  let find_min = function
+    | E -> raise Empty
+    | H (x, _) -> return x
+
+  let delete_min = function
+    | E -> raise Empty
+    | H (x, p) ->
+        if PrimH.is_empty p then return (x, E)
+        else match_lwt PrimH.delete_min p with
+          | (H (y, p1), p2) ->
+              lwt p' = PrimH.merge p1 p2 in
+              return (x, H (y, p'))
+          | _ -> raise Not_found
 end

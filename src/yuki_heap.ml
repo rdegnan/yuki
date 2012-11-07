@@ -14,6 +14,9 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
 
   open Client
 
+  let empty = []
+  let is_empty ts = ts = []
+
   let node (r, x, xs, c) = put (r, x, xs) c
 
   let rank { value = (r, _, _) } = r

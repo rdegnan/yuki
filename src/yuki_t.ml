@@ -7,4 +7,4 @@ type node = (int * string * string list)
 
 type heap = string list
 
-type bootstrap = (string * heap)
+type bootstrap = [ `E | `H of (string * heap) ]

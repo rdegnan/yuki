@@ -8,6 +8,9 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   module Client = Client.Make(Conn)(Elem)
   open Client
 
+  let empty = []
+  let is_empty ts = ts = []
+
   let leaf x = lwt t = put x [] in return t.key
   let node x t1 t2 = lwt t = put x [t1; t2] in return t.key
 
