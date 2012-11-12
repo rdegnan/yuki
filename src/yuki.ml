@@ -11,17 +11,17 @@ module Array(Conn:Make.Conn)(Elem:Make.Elem) = struct
   end)
 
   let empty () =
-    lwt { Client.key = key' } = Client.put Impl.empty [] in
-    return key'
+    lwt { Client.key = key } = Client.put Impl.empty [] in
+    return key
 
-  let cons key x = Client.write key (Impl.cons x)
-  let head key = Client.read key Impl.head
-  let tail key = Client.write key Impl.tail
+  let cons head ?key x = Client.write head (Impl.cons ?key x)
+  let head head = Client.read head Impl.head
+  let tail head = Client.write head Impl.tail
 
-  let lookup key i = Client.read key (Impl.lookup i)
-  let update key i y = Client.write key (Impl.update i y)
+  let lookup head i = Client.read head (Impl.lookup i)
+  let update head i y = Client.write head (Impl.update i y)
 
-  let page key i n = Client.read key (Impl.page i n)
+  let page head i n = Client.read head (Impl.page i n)
 end
 
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
@@ -29,11 +29,11 @@ module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module Client = Client.Make(Conn)(Impl.BootstrappedElem)
 
   let empty () =
-    lwt { Client.key = key' } = Client.put Impl.empty [] in
-    return key'
+    lwt { Client.key = key } = Client.put Impl.empty [] in
+    return key
 
-  let insert key x = Client.write key (Impl.insert x)
+  let insert head x = Client.write head (Impl.insert x)
 
-  let find_min key = Client.read key Impl.find_min
-  let delete_min key = Client.write' key Impl.delete_min
+  let find_min head = Client.read head Impl.find_min
+  let delete_min head = Client.write' head Impl.delete_min
 end

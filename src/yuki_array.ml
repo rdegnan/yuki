@@ -11,19 +11,19 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let empty = []
   let is_empty ts = ts = []
 
-  let leaf x = lwt t = put x [] in return t.key
-  let node x t1 t2 = lwt t = put x [t1; t2] in return t.key
+  let leaf ?key x = lwt t = put ?key x [] in return t.key
+  let node ?key x t1 t2 = lwt t = put ?key x [t1; t2] in return t.key
 
-  let cons x = function
+  let cons ?key x = function
     | (w1, t1) :: (w2, t2) :: ts' as ts ->
         if w1 = w2 then
-          lwt t = node x t1 t2 in
+          lwt t = node ?key x t1 t2 in
           return ((1 + w1 + w2, t) :: ts')
         else
-          lwt t = leaf x in
+          lwt t = leaf ?key x in
           return ((1, t) :: ts)
     | ts ->
-        lwt t = leaf x in
+        lwt t = leaf ?key x in
         return ((1, t) :: ts)
 
   let head = function

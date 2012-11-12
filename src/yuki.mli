@@ -1,7 +1,7 @@
 module Array(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val empty : unit -> string Lwt.t
 
-  val cons : string -> Elem.t -> string Lwt.t
+  val cons : string -> ?key:string -> Elem.t -> string Lwt.t
   val head : string -> Elem.t Lwt.t
   val tail : string -> string Lwt.t
   (* head and tail raise Empty if list is empty *)
