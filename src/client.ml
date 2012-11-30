@@ -10,7 +10,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   }
 
   let keys = List.map (function { Riak.key = Some key } -> key | _ -> raise Not_found)
-  let links = List.map (fun key -> { riak_link_defaults with Riak.key = Some key })
+  let links = List.map (fun key -> { riak_link_defaults with Riak.bucket = Some Elem.bucket; key = Some key })
 
   let get key = Conn.with_connection (fun conn ->
     match_lwt riak_get conn Elem.bucket key [] with
@@ -20,7 +20,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   )
 
   let put ?key ?v x ts = Conn.with_connection (fun conn ->
-    match_lwt riak_put_raw conn Elem.bucket key ~links:(links ts) (Elem.to_string x) [Put_return_head true] v with
+    match_lwt riak_put_raw conn Elem.bucket key ~links:(links ts) (Elem.to_string x) [Put_return_head true; Put_if_none_match true] v with
       | Some { obj_key = Some key; obj_vclock = Some vclock } ->
           return { key = key; value = x; vclock = vclock; links = ts }
       | Some { obj_vclock = Some vclock } -> (match key with
