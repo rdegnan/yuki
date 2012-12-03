@@ -1,7 +1,7 @@
 (* Auto-generated from "yuki.atd" *)
 
 
-type array = Yuki_t.array
+type rlist = Yuki_t.rlist
 
 type node = Yuki_t.node
 
@@ -9,25 +9,25 @@ type heap = Yuki_t.heap
 
 type bootstrap = Yuki_t.bootstrap
 
-val write_array :
-  Bi_outbuf.t -> array -> unit
-  (** Output a JSON value of type {!array}. *)
+val write_rlist :
+  Bi_outbuf.t -> rlist -> unit
+  (** Output a JSON value of type {!rlist}. *)
 
-val string_of_array :
-  ?len:int -> array -> string
-  (** Serialize a value of type {!array}
+val string_of_rlist :
+  ?len:int -> rlist -> string
+  (** Serialize a value of type {!rlist}
       into a JSON string.
       @param len specifies the initial length
                  of the buffer used internally.
                  Default: 1024. *)
 
-val read_array :
-  Yojson.Safe.lexer_state -> Lexing.lexbuf -> array
-  (** Input JSON data of type {!array}. *)
+val read_rlist :
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> rlist
+  (** Input JSON data of type {!rlist}. *)
 
-val array_of_string :
-  string -> array
-  (** Deserialize JSON data of type {!array}. *)
+val rlist_of_string :
+  string -> rlist
+  (** Deserialize JSON data of type {!rlist}. *)
 
 val write_node :
   Bi_outbuf.t -> node -> unit

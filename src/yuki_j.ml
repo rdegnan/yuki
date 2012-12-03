@@ -1,7 +1,7 @@
 (* Auto-generated from "yuki.atd" *)
 
 
-type array = Yuki_t.array
+type rlist = Yuki_t.rlist
 
 type node = Yuki_t.node
 
@@ -78,18 +78,18 @@ let read__1 = (
 )
 let _1_of_string s =
   read__1 (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
-let write_array = (
+let write_rlist = (
   write__1
 )
-let string_of_array ?(len = 1024) x =
+let string_of_rlist ?(len = 1024) x =
   let ob = Bi_outbuf.create len in
-  write_array ob x;
+  write_rlist ob x;
   Bi_outbuf.contents ob
-let read_array = (
+let read_rlist = (
   read__1
 )
-let array_of_string s =
-  read_array (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
+let rlist_of_string s =
+  read_rlist (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__2 = (
   Ag_oj_run.write_list (
     Yojson.Safe.write_string

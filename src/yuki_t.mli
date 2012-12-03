@@ -1,7 +1,7 @@
 (* Auto-generated from "yuki.atd" *)
 
 
-type array = (int * string) list
+type rlist = (int * string) list
 
 type node = (int * string * string list)
 

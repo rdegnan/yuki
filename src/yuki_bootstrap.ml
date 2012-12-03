@@ -50,5 +50,5 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
           | (H (y, p1), p2) ->
               lwt p' = PrimH.merge p1 p2 in
               return (x, H (y, p'))
-          | _ -> raise Not_found
+          | _ -> assert false
 end
