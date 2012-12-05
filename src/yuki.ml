@@ -11,8 +11,12 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
   end)
 
   let empty () =
-    lwt { Client.key = key } = Client.put Impl.empty [] in
+    lwt { Client.key } = Client.put Impl.empty [] in
     return key
+
+  let size head =
+    lwt { Client.value } = Client.get head in
+    return (List.fold_left (fun a (w, _) -> a + w) 0 value)
 
   let cons head ?key x = Client.write head (Impl.cons ?key x)
   let head head = Client.read head Impl.head
@@ -29,7 +33,7 @@ module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module Client = Client.Make(Conn)(Impl.BootstrappedElem)
 
   let empty () =
-    lwt { Client.key = key } = Client.put Impl.empty [] in
+    lwt { Client.key } = Client.put Impl.empty [] in
     return key
 
   let insert head x = Client.write head (Impl.insert x)

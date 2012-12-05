@@ -1,5 +1,6 @@
 module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val empty : unit -> string Lwt.t
+  val size : string -> int Lwt.t
 
   val cons : string -> ?key:string -> Elem.t -> string Lwt.t
   val head : string -> Elem.t Lwt.t
