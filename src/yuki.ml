@@ -26,6 +26,7 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let update head i y = Client.write head (Impl.update i y)
 
   let page head i n = Client.read head (Impl.page i n)
+  let fold_left head f x = Client.read head (Impl.fold_left f x)
 end
 
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct

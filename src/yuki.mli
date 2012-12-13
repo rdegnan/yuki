@@ -12,6 +12,7 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   (* lookup and update raise Subscript if index is out of bounds *)
 
   val page : string -> int -> int -> (Elem.t list * bool) Lwt.t
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 end
 
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig

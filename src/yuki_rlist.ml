@@ -115,4 +115,18 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
             and (t2, has_more) = page 0 (i + n - w) ts in
             return (t1 @ t2, has_more)
         else page (i - w) n ts
+
+  let rec fold_left_tree f acc = function
+    | { value = x; links = [] } -> f acc x
+    | { value = x; links = [t1; t2] } ->
+        lwt acc = f acc x in
+        get t1 >>= fold_left_tree f acc >>= fun acc ->
+        get t2 >>= fold_left_tree f acc
+    | _ -> assert false
+
+  let rec fold_left f acc = function
+    | [] -> return acc
+    | (w, t) :: ts ->
+        get t >>= fold_left_tree f acc >>= fun acc ->
+        fold_left f acc ts
 end
