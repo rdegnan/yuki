@@ -127,6 +127,19 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let rec fold_left f acc = function
     | [] -> return acc
     | (w, t) :: ts ->
-        get t >>= fold_left_tree f acc >>= fun acc ->
+        lwt acc = get t >>= fold_left_tree f acc in
         fold_left f acc ts
+
+  let rec fold_right_tree f acc = function
+    | { value = x; links = [] } -> f x acc
+    | { value = x; links = [t1; t2] } ->
+        lwt acc = get t2 >>= fold_right_tree f acc in
+        get t1 >>= fold_right_tree f acc >>= f x
+    | _ -> assert false
+
+  let rec fold_right f acc = function
+    | [] -> return acc
+    | (w, t) :: ts ->
+        lwt acc = fold_right f acc ts in
+        get t >>= fold_right_tree f acc
 end
