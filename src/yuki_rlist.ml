@@ -116,6 +116,29 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
             return (t1 @ t2, has_more)
         else page (i - w) n ts
 
+  let rec take_while_tree p = function
+      | { value = x; links = [] } ->
+          if p x then return ([x], true)
+          else return ([], false)
+      | { value = x; links = [t1; t2] } ->
+          if p x then
+            lwt (acc, has_more) = get t1 >>= take_while_tree p in
+            if has_more then
+              lwt (acc', has_more) = get t2 >>= take_while_tree p in
+              return (x :: acc @ acc', has_more)
+            else return (x :: acc, false)
+          else return ([], false)
+      | _ -> assert false
+
+  let rec take_while p = function
+    | [] -> return []
+    | (w, t) :: ts ->
+        lwt (acc, has_more) = get t >>= take_while_tree p in
+        if has_more then
+          lwt acc' = take_while p ts in
+          return (acc @ acc')
+        else return acc
+
   let rec fold_left_tree f acc = function
     | { value = x; links = [] } -> f acc x
     | { value = x; links = [t1; t2] } ->

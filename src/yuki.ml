@@ -26,6 +26,8 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let update head i y = Client.write head (Impl.update i y)
 
   let page head i n = Client.read head (Impl.page i n)
+  let take_while head p = Client.read head (Impl.take_while p)
+
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
 end
