@@ -34,15 +34,39 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     lwt { value = x } = get key in
     fn x
 
+  let read_default key empty fn =
+    try_lwt
+      read key fn
+    with Not_found ->
+      fn empty
+
   let write key fn =
     lwt { value = x; vclock = v } = get key in
     lwt x' = fn x in
     lwt { key = key' } = put ~v x' [] in
     return key'
 
+  let write_default key empty fn =
+    try_lwt
+      lwt _ = write key fn in
+      return ()
+    with Not_found ->
+      lwt x = fn empty in
+      lwt _ = put ~key x [] in
+      return ()
+
   let write' key fn =
     lwt { value = ts; vclock = v } = get key in
     lwt (x, ts') = fn ts in
     lwt { key = key' } = put ~v ts' [] in
     return (x, key')
+
+  let write_default' key empty fn =
+    try_lwt
+      lwt (x, _) = write' key fn in
+      return x
+  with Not_found ->
+    lwt (x, ts) = fn empty in
+    lwt _ = put ~key ts [] in
+    return x
 end
