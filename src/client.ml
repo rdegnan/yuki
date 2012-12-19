@@ -1,5 +1,6 @@
 open Lwt
 open Riak
+open Riak_kv_piqi
 
 module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   type t = {
@@ -9,8 +10,8 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     links : riak_key list;
   }
 
-  let keys = List.map (function { Riak.key = Some key } -> key | _ -> raise Not_found)
-  let links = List.map (fun key -> { riak_link_defaults with Riak.bucket = Some Elem.bucket; key = Some key })
+  let keys = List.map (function { Rpb_link.key = Some key } -> key | _ -> raise Not_found)
+  let links = List.map (fun key -> { Rpb_link.bucket = Some Elem.bucket; key = Some key; tag = None })
 
   let get key = Conn.with_connection (fun conn ->
     match_lwt riak_get conn Elem.bucket key [] with
