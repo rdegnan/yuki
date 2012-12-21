@@ -32,7 +32,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
         lwt { value = x } = get t in
         return x
 
-  let tail = function
+  let pop = function
     | [] -> raise Empty
     | (w, t) :: ts ->
         match_lwt get t with
