@@ -50,7 +50,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     try_lwt
       lwt { value = x; vclock = v } = get key in
       lwt x' = fn x in
-      lwt _ = put ~key ~v ~ops:[] x' [] in
+      lwt _ = put ~key ~v ~ops:[Put_return_head true] x' [] in
       return ()
     with Not_found ->
       lwt x = fn empty in
@@ -67,7 +67,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     try_lwt
       lwt { value = ts; vclock = v } = get key in
       lwt (x, ts') = fn ts in
-      lwt _ = put ~v ~key ~ops:[] ts' [] in
+      lwt _ = put ~v ~key ~ops:[Put_return_head true] ts' [] in
       return x
     with Not_found ->
       lwt (x, ts) = fn empty in
