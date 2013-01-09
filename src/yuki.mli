@@ -15,6 +15,8 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+  val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
 end
 
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
@@ -43,6 +45,8 @@ module Imperative : sig
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+    val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
   end
 
   module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
