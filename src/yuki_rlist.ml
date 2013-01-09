@@ -165,4 +165,19 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     | (w, t) :: ts ->
         lwt acc = fold_right f acc ts in
         get t >>= fold_right_tree f acc
+
+  let rec map_tree f = function
+    | { value = x; links = [] } ->
+        return [ f x ]
+    | { value = x; links = [t1; t2] } ->
+        lwt l = get t1 >>= map_tree f
+        and r = get t2 >>= map_tree f
+        in
+        return (f x :: l @ r)
+    | _ -> assert false
+
+  let map f t =
+    lwt res = Lwt_list.map_p (fun (w,t) -> get t >>= map_tree f) t in
+    return (List.flatten res)
+
 end

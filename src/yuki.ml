@@ -27,6 +27,8 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
+
+  let map head f = Client.read head (Impl.map f)
 end
 
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
@@ -66,6 +68,8 @@ module Imperative = struct
 
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
+
+    let map head f = Client.read_default head Impl.empty (Impl.map f)
   end
 
   module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
