@@ -21,12 +21,11 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
 
   let put ?key ?(ops=[Put_return_head true; Put_if_none_match true]) x ts = Conn.with_connection (fun conn ->
     match_lwt riak_put conn Elem.bucket key ~links:(links ts) (Elem.to_string x) ops with
-      | Some { obj_key = Some key } ->
-          return { key = key; value = x; links = ts }
-      | _ ->
-        (match key with
-          | Some key -> return { key = key; value = x; links = ts }
-          | None -> raise Not_found)
+      | Some { obj_key = Some key } -> return key
+      | _ -> (match key with
+          | Some key -> return key
+          | None -> raise Not_found
+      )
   )
 
   let read key fn =
@@ -42,8 +41,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let write key fn =
     lwt { value = x } = get key in
     lwt x' = fn x in
-    lwt { key = key' } = put x' [] in
-    return key'
+    put x' []
 
   let write_default key empty fn =
     try_lwt
@@ -59,7 +57,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let write' key fn =
     lwt { value = ts } = get key in
     lwt (x, ts') = fn ts in
-    lwt { key = key' } = put ts' [] in
+    lwt key' = put ts' [] in
     return (x, key')
 
   let write_default' key empty fn =

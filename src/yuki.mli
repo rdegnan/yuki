@@ -20,6 +20,14 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
 end
 
+module Queue(Conn:Make.Conn)(Elem:Make.Elem) : sig
+  val init : unit -> string Lwt.t
+
+  (*val snoc : string -> Elem.t -> string Lwt.t*)
+  val head : string -> Elem.t Lwt.t
+  (*val pop : string -> (Elem.t * string) Lwt.t*)
+end
+
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
   val init : unit -> string Lwt.t
 

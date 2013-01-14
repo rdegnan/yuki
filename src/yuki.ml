@@ -10,9 +10,7 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
     let bucket = Elem.bucket
   end)
 
-  let init () =
-    lwt { Client.key } = Client.put Impl.empty [] in
-    return key
+  let init () = Client.put Impl.empty []
 
   let size head = Client.read head
     (Lwt_list.fold_left_s (fun a (w, _) -> return (a + w)) 0)
@@ -32,13 +30,22 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let map head f = Client.read head (Impl.map f)
 end
 
+module Queue(Conn:Make.Conn)(Elem:Make.Elem) = struct
+  module Impl = Yuki_queue.MakeQ(Conn)(Elem)
+  module Client = Impl.Client
+
+  let init () = Client.put Impl.empty []
+
+  (*let snoc head x = Client.write head (Impl.snoc x)*)
+  let head head = Client.read head Impl.head
+  (*let pop head = Client.write' head Impl.tail*)
+end
+
 module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
   module Impl = Yuki_bootstrap.Make(Conn)(Elem)
   module Client = Client.Make(Conn)(Impl.BootstrappedElem)
 
-  let init () =
-    lwt { Client.key } = Client.put Impl.empty [] in
-    return key
+  let init () = Client.put Impl.empty []
 
   let insert head x = Client.write head (Impl.insert x)
 

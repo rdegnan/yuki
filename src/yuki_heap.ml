@@ -17,7 +17,9 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   let empty = []
   let is_empty ts = ts = []
 
-  let node (r, x, xs, c) = put (r, x, xs) c
+  let node (r, x, xs, c) =
+    lwt key = put (r, x, xs) c in
+    return { key; value = (r, x, xs); links = c }
 
   let rank { value = (r, _, _) } = r
   let root { value = (_, x, _) } = x

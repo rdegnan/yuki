@@ -3,6 +3,12 @@
 
 type rlist = Yuki_t.rlist
 
+type pair = Yuki_t.pair
+
+type digit = Yuki_t.digit
+
+type queue = Yuki_t.queue
+
 type node = Yuki_t.node
 
 type heap = Yuki_t.heap
@@ -28,6 +34,66 @@ val read_rlist :
 val rlist_of_string :
   string -> rlist
   (** Deserialize JSON data of type {!rlist}. *)
+
+val write_pair :
+  Bi_outbuf.t -> pair -> unit
+  (** Output a JSON value of type {!pair}. *)
+
+val string_of_pair :
+  ?len:int -> pair -> string
+  (** Serialize a value of type {!pair}
+      into a JSON string.
+      @param len specifies the initial length
+                 of the buffer used internally.
+                 Default: 1024. *)
+
+val read_pair :
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> pair
+  (** Input JSON data of type {!pair}. *)
+
+val pair_of_string :
+  string -> pair
+  (** Deserialize JSON data of type {!pair}. *)
+
+val write_digit :
+  Bi_outbuf.t -> digit -> unit
+  (** Output a JSON value of type {!digit}. *)
+
+val string_of_digit :
+  ?len:int -> digit -> string
+  (** Serialize a value of type {!digit}
+      into a JSON string.
+      @param len specifies the initial length
+                 of the buffer used internally.
+                 Default: 1024. *)
+
+val read_digit :
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> digit
+  (** Input JSON data of type {!digit}. *)
+
+val digit_of_string :
+  string -> digit
+  (** Deserialize JSON data of type {!digit}. *)
+
+val write_queue :
+  Bi_outbuf.t -> queue -> unit
+  (** Output a JSON value of type {!queue}. *)
+
+val string_of_queue :
+  ?len:int -> queue -> string
+  (** Serialize a value of type {!queue}
+      into a JSON string.
+      @param len specifies the initial length
+                 of the buffer used internally.
+                 Default: 1024. *)
+
+val read_queue :
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> queue
+  (** Input JSON data of type {!queue}. *)
+
+val queue_of_string :
+  string -> queue
+  (** Deserialize JSON data of type {!queue}. *)
 
 val write_node :
   Bi_outbuf.t -> node -> unit
