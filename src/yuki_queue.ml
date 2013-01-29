@@ -1,79 +1,74 @@
 open Lwt
 open Riak
+open Riak
+open Riak_kv_piqi
+open Ag_util
 open Yuki_j
 
 exception Empty
 
-module type Queue = functor (Conn:Make.Conn) -> functor (Elem:Make.Elem) -> sig
-  module ShallowElem : sig
-    type digit = Zero | One of Elem.t | Two of Elem.t * Elem.t
-    type t = Shallow of digit | Deep of digit * string * digit
-    include Make.Elem with type t := t
-  end
-  module Client : module type of Client.Make(Conn)(ShallowElem)
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+  let empty = `Shallow `Zero
+  let is_empty = function `Shallow `Zero -> true | _ -> false
 
-  val empty : ShallowElem.t
+  let reader v lexbuf = Elem.of_string (Yojson.Safe.read_string v lexbuf)
+  let writer ob x = Yojson.Safe.write_string ob (Elem.to_string x)
 
-  val snoc : Elem.t -> ShallowElem.t -> string Lwt.t
-  val head : ShallowElem.t -> Elem.t Lwt.t
-  (*val pop : ShallowElem.t -> (Elem.t * string) Lwt.t*)
-end
+  let get reader key =
+    Conn.with_connection (fun conn ->
+      match_lwt riak_get conn Elem.bucket key [] with
+        | Some { obj_key = Some key; obj_value = Some value; obj_links = links } ->
+            return (Json.from_string (read_queue reader) value)
+        | _ -> raise Not_found
+    )
 
-module rec MakeQ : Queue = functor (Conn:Make.Conn) -> functor (Elem:Make.Elem) -> struct
-  (*module DeepElem = struct
-    type t = Elem.t * Elem.t
-    let of_string x = let (x1, x2) = pair_of_string x in (Elem.of_string x1, Elem.of_string x2)
-    let to_string (x1, x2) = string_of_pair (Elem.to_string x1, Elem.to_string x2)
-    let bucket = Elem.bucket
-  end
+  let put writer ?key ?(ops=[Put_return_head true; Put_if_none_match true]) x =
+    Conn.with_connection (fun conn ->
+      match_lwt riak_put conn Elem.bucket key (Json.to_string (write_queue writer) x) ops with
+        | Some { obj_key = Some key } -> return key
+        | _ -> (match key with
+            | Some key -> return key
+            | None -> raise Not_found
+        )
+    )
 
-  module Deep = MakeQ(Conn)*)
+  let rec snoc_queue : 'a .'a Json.reader -> 'a Json.writer -> 'a -> 'a queue -> 'a queue Lwt.t =
+    fun reader writer y -> function
+      | `Shallow `Zero -> return (`Shallow (`One y))
+      | `Shallow (`One x) ->
+        lwt m = put writer (`Shallow `Zero) in
+        return (`Deep (`Two (x,y), m, `Zero))
+      | `Deep (f, m, `Zero) -> return (`Deep (f, m, `One y))
+      | `Deep (f, m, `One x) ->
+        let reader' = read_pair reader and writer' = write_pair writer in
+        lwt m' = get reader' m >>= snoc_queue reader' writer' (x,y) >>= put writer' in
+        return (`Deep (f, m', `Zero))
+      | _ -> assert false
 
-  module ShallowElem = struct
-    type digit = Zero | One of Elem.t | Two of Elem.t * Elem.t
-    type t = Shallow of digit | Deep of digit * string * digit
-    let digit_of_string = function
-      | `Zero -> Zero
-      | `One x -> One (Elem.of_string x)
-      | `Two (x1, x2) -> Two (Elem.of_string x1, Elem.of_string x2)
-    let string_of_digit = function
-      | Zero -> `Zero
-      | One x -> `One (Elem.to_string x)
-      | Two (x1, x2) -> `Two (Elem.to_string x1, Elem.to_string x2)
-    let of_string x = match queue_of_string x with
-      | `Shallow x -> Shallow (digit_of_string x)
-      | `Deep (x1, xs, x2) -> Deep (digit_of_string x1, xs, digit_of_string x2)
-    let to_string x = string_of_queue (match x with
-      | Shallow x -> `Shallow (string_of_digit x)
-      | Deep (x1, xs, x2) -> `Deep (string_of_digit x1, xs, string_of_digit x2))
-    let bucket = Elem.bucket
-  end
-
-  module Client = Client.Make(Conn)(ShallowElem)
-  open ShallowElem (* expose Shallow and Deep constructors *)
-
-  let empty = Shallow Zero
-  let is_empty = function Shallow Zero -> true | _ -> false
-
-  let shallow x = Client.put (Shallow x) []
-  let deep (x1, xs, x2) = Client.put (Deep (x1, xs, x2)) []
-
-  let rec snoc y = function
-    | Shallow Zero -> shallow (One y)
-    | Shallow (One x) ->
-        assert false
-        (*lwt key = Deep.Client.put Deep.empty [] in
-        deep (Two (x,y), key, Zero)*)
-    (*| Deep (f, m, Zero) -> deep (f, m, One y)
-    | Deep (f, m, One x) ->
-        lwt m' = Deep.Client.get m >>= Deep.snoc (x,y) in
-        deep (f, m', Zero)*)
-    | _ -> assert false
+  let snoc = snoc_queue reader writer
 
   let head = function
-    | Shallow Zero -> raise Empty
-    | Shallow (One x)
-    | Deep (One x, _, _)
-    | Deep (Two (x, _), _, _) -> return x
+    | `Shallow `Zero -> raise Empty
+    | `Shallow (`One x)
+    | `Deep (`One x, _, _)
+    | `Deep (`Two (x, _), _, _) -> return x
     | _ -> assert false
+
+   let rec pop_queue : 'a. 'a Json.reader -> 'a Json.writer -> 'a queue -> ('a * 'a queue) Lwt.t =
+     fun reader writer -> function
+     | `Shallow `Zero -> raise Empty
+     | `Shallow (`One x) -> return (x, `Shallow `Zero)
+     | `Deep (`Two (x,y), m, r) -> return (x, `Deep (`One y, m, r))
+     | `Deep (`One x, m, r) ->
+       let reader' = read_pair reader and writer' = write_pair writer in
+       (match_lwt get reader' m with
+         | `Shallow `Zero -> return (x, `Shallow r)
+         | m ->
+           lwt ((y, z), m') = pop_queue reader' writer' m in
+           lwt m' = put writer' m' in
+           return (x, `Deep (`Two (y,z), m', r))
+       )
+     | _ -> assert false
+
+  let pop = pop_queue reader writer
 end

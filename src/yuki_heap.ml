@@ -4,7 +4,7 @@ open Yuki_j
 
 exception Empty
 
-module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module Client = Client.Make(Conn)(struct
     type t = int * Elem.t * Elem.t list
     let of_string x = let (r, x, xs) = node_of_string x in (r, Elem.of_string x, List.map Elem.of_string xs)

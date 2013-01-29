@@ -1,6 +1,6 @@
 open Riak
 
-module Make(Conn:Make.Conn)(Elem:Make.Elem) : sig
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   type t = {
     key : riak_key;
     value : Elem.t;
@@ -18,13 +18,3 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val write' : riak_key -> (Elem.t -> ('a * Elem.t) Lwt.t) -> ('a * riak_key) Lwt.t
   val write_default' : riak_key -> Elem.t -> (Elem.t -> ('a * Elem.t) Lwt.t) -> 'a Lwt.t
 end
-
-
-
-
-
-
-
-
-
-

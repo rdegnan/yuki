@@ -1,7 +1,8 @@
 open Lwt
+open Ag_util
 open Yuki_j
 
-module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
+module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   module Impl = Yuki_rlist.Make(Conn)(Elem)
   module Client = Client.Make(Conn)(struct
     type t = rlist
@@ -30,18 +31,23 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
   let map head f = Client.read head (Impl.map f)
 end
 
-module Queue(Conn:Make.Conn)(Elem:Make.Elem) = struct
-  module Impl = Yuki_queue.MakeQ(Conn)(Elem)
-  module Client = Impl.Client
+module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+  module Impl = Yuki_queue.Make(Conn)(Elem)
+  module Client = Client.Make(Conn)(struct
+    type t = Elem.t queue
+    let of_string x = Json.from_string (read_queue Impl.reader) x
+    let to_string x = Json.to_string (write_queue Impl.writer) x
+    let bucket = Elem.bucket
+  end)
 
   let init () = Client.put Impl.empty []
 
-  (*let snoc head x = Client.write head (Impl.snoc x)*)
+  let snoc head x = Client.write head (Impl.snoc x)
   let head head = Client.read head Impl.head
-  (*let pop head = Client.write' head Impl.tail*)
+  let pop head = Client.write' head Impl.pop
 end
 
-module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
+module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module Impl = Yuki_bootstrap.Make(Conn)(Elem)
   module Client = Client.Make(Conn)(Impl.BootstrappedElem)
 
@@ -54,7 +60,7 @@ module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
 end
 
 module Imperative = struct
-  module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
+  module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
     module Impl = Yuki_rlist.Make(Conn)(Elem)
     module Client = Client.Make(Conn)(struct
       type t = rlist
@@ -81,7 +87,7 @@ module Imperative = struct
     let map head f = Client.read_default head Impl.empty (Impl.map f)
   end
 
-  module Heap(Conn:Make.Conn)(Elem:Make.Ord) = struct
+  module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
     module Impl = Yuki_bootstrap.Make(Conn)(Elem)
     module Client = Client.Make(Conn)(Impl.BootstrappedElem)
 

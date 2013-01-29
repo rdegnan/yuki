@@ -3,11 +3,11 @@
 
 type rlist = Yuki_t.rlist
 
-type pair = Yuki_t.pair
+type 'a pair = 'a Yuki_t.pair
 
-type digit = Yuki_t.digit
+type 'a digit = 'a Yuki_t.digit
 
-type queue = Yuki_t.queue
+type 'a queue = 'a Yuki_t.queue
 
 type node = Yuki_t.node
 
@@ -96,27 +96,27 @@ let read_rlist = (
 )
 let rlist_of_string s =
   read_rlist (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
-let write_pair = (
+let write_pair write__a = (
   fun ob x ->
     Bi_outbuf.add_char ob '(';
     (let x, _ = x in
     (
-      Yojson.Safe.write_string
+      write__a
     ) ob x
     );
     Bi_outbuf.add_char ob ',';
     (let _, x = x in
     (
-      Yojson.Safe.write_string
+      write__a
     ) ob x
     );
     Bi_outbuf.add_char ob ')';
 )
-let string_of_pair ?(len = 1024) x =
+let string_of_pair write__a ?(len = 1024) x =
   let ob = Bi_outbuf.create len in
-  write_pair ob x;
+  write_pair write__a ob x;
   Bi_outbuf.contents ob
-let read_pair = (
+let read_pair read__a = (
   fun p lb ->
     Yojson.Safe.read_space p lb;
     let std_tuple = Yojson.Safe.start_any_tuple p lb in
@@ -126,7 +126,7 @@ let read_pair = (
       let x0 =
         let x =
           (
-            Ag_oj_run.read_string
+            read__a
           ) p lb
         in
         incr len;
@@ -137,7 +137,7 @@ let read_pair = (
       let x1 =
         let x =
           (
-            Ag_oj_run.read_string
+            read__a
           ) p lb
         in
         incr len;
@@ -159,16 +159,16 @@ let read_pair = (
     with Yojson.End_of_tuple ->
       Ag_oj_run.missing_tuple_fields !len [ 0; 1 ]);
 )
-let pair_of_string s =
-  read_pair (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
-let write_digit = (
+let pair_of_string read__a s =
+  read_pair read__a (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
+let write_digit write__a = (
   fun ob x ->
     match x with
       | `Zero -> Bi_outbuf.add_string ob "<\"Zero\">"
       | `One x ->
         Bi_outbuf.add_string ob "<\"One\":";
         (
-          Yojson.Safe.write_string
+          write__a
         ) ob x;
         Bi_outbuf.add_char ob '>'
       | `Two x ->
@@ -178,24 +178,24 @@ let write_digit = (
             Bi_outbuf.add_char ob '(';
             (let x, _ = x in
             (
-              Yojson.Safe.write_string
+              write__a
             ) ob x
             );
             Bi_outbuf.add_char ob ',';
             (let _, x = x in
             (
-              Yojson.Safe.write_string
+              write__a
             ) ob x
             );
             Bi_outbuf.add_char ob ')';
         ) ob x;
         Bi_outbuf.add_char ob '>'
 )
-let string_of_digit ?(len = 1024) x =
+let string_of_digit write__a ?(len = 1024) x =
   let ob = Bi_outbuf.create len in
-  write_digit ob x;
+  write_digit write__a ob x;
   Bi_outbuf.contents ob
-let read_digit = (
+let read_digit read__a = (
   fun p lb ->
     Yojson.Safe.read_space p lb;
     match Yojson.Safe.start_any_variant p lb with
@@ -253,7 +253,7 @@ let read_digit = (
             | 1 ->
               Ag_oj_run.read_until_field_value p lb;
               let x = (
-                  Ag_oj_run.read_string
+                  read__a
                 ) p lb
               in
               Yojson.Safe.read_space p lb;
@@ -271,7 +271,7 @@ let read_digit = (
                       let x0 =
                         let x =
                           (
-                            Ag_oj_run.read_string
+                            read__a
                           ) p lb
                         in
                         incr len;
@@ -282,7 +282,7 @@ let read_digit = (
                       let x1 =
                         let x =
                           (
-                            Ag_oj_run.read_string
+                            read__a
                           ) p lb
                         in
                         incr len;
@@ -379,7 +379,7 @@ let read_digit = (
               Yojson.Safe.read_comma p lb;
               Yojson.Safe.read_space p lb;
               let x = (
-                  Ag_oj_run.read_string
+                  read__a
                 ) p lb
               in
               Yojson.Safe.read_space p lb;
@@ -399,7 +399,7 @@ let read_digit = (
                       let x0 =
                         let x =
                           (
-                            Ag_oj_run.read_string
+                            read__a
                           ) p lb
                         in
                         incr len;
@@ -410,7 +410,7 @@ let read_digit = (
                       let x1 =
                         let x =
                           (
-                            Ag_oj_run.read_string
+                            read__a
                           ) p lb
                         in
                         incr len;
@@ -441,15 +441,15 @@ let read_digit = (
               )
         )
 )
-let digit_of_string s =
-  read_digit (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
-let write_queue = (
+let digit_of_string read__a s =
+  read_digit read__a (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
+let write_queue write__a = (
   fun ob x ->
     match x with
       | `Shallow x ->
         Bi_outbuf.add_string ob "<\"Shallow\":";
         (
-          write_digit
+          write_digit write__a
         ) ob x;
         Bi_outbuf.add_char ob '>'
       | `Deep x ->
@@ -459,7 +459,7 @@ let write_queue = (
             Bi_outbuf.add_char ob '(';
             (let x, _, _ = x in
             (
-              write_digit
+              write_digit write__a
             ) ob x
             );
             Bi_outbuf.add_char ob ',';
@@ -471,18 +471,18 @@ let write_queue = (
             Bi_outbuf.add_char ob ',';
             (let _, _, x = x in
             (
-              write_digit
+              write_digit write__a
             ) ob x
             );
             Bi_outbuf.add_char ob ')';
         ) ob x;
         Bi_outbuf.add_char ob '>'
 )
-let string_of_queue ?(len = 1024) x =
+let string_of_queue write__a ?(len = 1024) x =
   let ob = Bi_outbuf.create len in
-  write_queue ob x;
+  write_queue write__a ob x;
   Bi_outbuf.contents ob
-let read_queue = (
+let read_queue read__a = (
   fun p lb ->
     Yojson.Safe.read_space p lb;
     match Yojson.Safe.start_any_variant p lb with
@@ -522,7 +522,7 @@ let read_queue = (
             | 0 ->
               Ag_oj_run.read_until_field_value p lb;
               let x = (
-                  read_digit
+                  read_digit read__a
                 ) p lb
               in
               Yojson.Safe.read_space p lb;
@@ -540,7 +540,7 @@ let read_queue = (
                       let x0 =
                         let x =
                           (
-                            read_digit
+                            read_digit read__a
                           ) p lb
                         in
                         incr len;
@@ -562,7 +562,7 @@ let read_queue = (
                       let x2 =
                         let x =
                           (
-                            read_digit
+                            read_digit read__a
                           ) p lb
                         in
                         incr len;
@@ -643,7 +643,7 @@ let read_queue = (
               Yojson.Safe.read_comma p lb;
               Yojson.Safe.read_space p lb;
               let x = (
-                  read_digit
+                  read_digit read__a
                 ) p lb
               in
               Yojson.Safe.read_space p lb;
@@ -663,7 +663,7 @@ let read_queue = (
                       let x0 =
                         let x =
                           (
-                            read_digit
+                            read_digit read__a
                           ) p lb
                         in
                         incr len;
@@ -685,7 +685,7 @@ let read_queue = (
                       let x2 =
                         let x =
                           (
-                            read_digit
+                            read_digit read__a
                           ) p lb
                         in
                         incr len;
@@ -716,8 +716,8 @@ let read_queue = (
               )
         )
 )
-let queue_of_string s =
-  read_queue (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
+let queue_of_string read__a s =
+  read_queue read__a (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__2 = (
   Ag_oj_run.write_list (
     Yojson.Safe.write_string

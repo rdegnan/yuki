@@ -2,7 +2,7 @@ open Lwt
 open Riak
 open Riak_kv_piqi
 
-module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   type t = {
     key : riak_key;
     value : Elem.t;

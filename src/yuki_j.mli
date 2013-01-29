@@ -3,11 +3,11 @@
 
 type rlist = Yuki_t.rlist
 
-type pair = Yuki_t.pair
+type 'a pair = 'a Yuki_t.pair
 
-type digit = Yuki_t.digit
+type 'a digit = 'a Yuki_t.digit
 
-type queue = Yuki_t.queue
+type 'a queue = 'a Yuki_t.queue
 
 type node = Yuki_t.node
 
@@ -36,11 +36,13 @@ val rlist_of_string :
   (** Deserialize JSON data of type {!rlist}. *)
 
 val write_pair :
-  Bi_outbuf.t -> pair -> unit
+  (Bi_outbuf.t -> 'a -> unit) ->
+  Bi_outbuf.t -> 'a pair -> unit
   (** Output a JSON value of type {!pair}. *)
 
 val string_of_pair :
-  ?len:int -> pair -> string
+  (Bi_outbuf.t -> 'a -> unit) ->
+  ?len:int -> 'a pair -> string
   (** Serialize a value of type {!pair}
       into a JSON string.
       @param len specifies the initial length
@@ -48,19 +50,23 @@ val string_of_pair :
                  Default: 1024. *)
 
 val read_pair :
-  Yojson.Safe.lexer_state -> Lexing.lexbuf -> pair
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a pair
   (** Input JSON data of type {!pair}. *)
 
 val pair_of_string :
-  string -> pair
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  string -> 'a pair
   (** Deserialize JSON data of type {!pair}. *)
 
 val write_digit :
-  Bi_outbuf.t -> digit -> unit
+  (Bi_outbuf.t -> 'a -> unit) ->
+  Bi_outbuf.t -> 'a digit -> unit
   (** Output a JSON value of type {!digit}. *)
 
 val string_of_digit :
-  ?len:int -> digit -> string
+  (Bi_outbuf.t -> 'a -> unit) ->
+  ?len:int -> 'a digit -> string
   (** Serialize a value of type {!digit}
       into a JSON string.
       @param len specifies the initial length
@@ -68,19 +74,23 @@ val string_of_digit :
                  Default: 1024. *)
 
 val read_digit :
-  Yojson.Safe.lexer_state -> Lexing.lexbuf -> digit
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a digit
   (** Input JSON data of type {!digit}. *)
 
 val digit_of_string :
-  string -> digit
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  string -> 'a digit
   (** Deserialize JSON data of type {!digit}. *)
 
 val write_queue :
-  Bi_outbuf.t -> queue -> unit
+  (Bi_outbuf.t -> 'a -> unit) ->
+  Bi_outbuf.t -> 'a queue -> unit
   (** Output a JSON value of type {!queue}. *)
 
 val string_of_queue :
-  ?len:int -> queue -> string
+  (Bi_outbuf.t -> 'a -> unit) ->
+  ?len:int -> 'a queue -> string
   (** Serialize a value of type {!queue}
       into a JSON string.
       @param len specifies the initial length
@@ -88,11 +98,13 @@ val string_of_queue :
                  Default: 1024. *)
 
 val read_queue :
-  Yojson.Safe.lexer_state -> Lexing.lexbuf -> queue
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a queue
   (** Input JSON data of type {!queue}. *)
 
 val queue_of_string :
-  string -> queue
+  (Yojson.Safe.lexer_state -> Lexing.lexbuf -> 'a) ->
+  string -> 'a queue
   (** Deserialize JSON data of type {!queue}. *)
 
 val write_node :

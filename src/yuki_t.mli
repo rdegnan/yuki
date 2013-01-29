@@ -3,11 +3,14 @@
 
 type rlist = (int * string) list
 
-type pair = (string * string)
+type 'a pair = ('a * 'a)
 
-type digit = [ `Zero | `One of string | `Two of (string * string) ]
+type 'a digit = [ `Zero | `One of 'a | `Two of ('a * 'a) ]
 
-type queue = [ `Shallow of digit | `Deep of (digit * string * digit) ]
+type 'a queue = [
+    `Shallow of 'a digit
+  | `Deep of ('a digit * string * 'a digit)
+]
 
 type node = (int * string * string list)
 

@@ -4,7 +4,7 @@ open Riak
 exception Empty
 exception Subscript
 
-module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   module Client = Client.Make(Conn)(Elem)
   open Client
 

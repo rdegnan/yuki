@@ -1,4 +1,4 @@
-module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
+module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
   val size : string -> int Lwt.t
 
@@ -20,15 +20,15 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
 end
 
-module Queue(Conn:Make.Conn)(Elem:Make.Elem) : sig
+module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
 
-  (*val snoc : string -> Elem.t -> string Lwt.t*)
+  val snoc : string -> Elem.t -> string Lwt.t
   val head : string -> Elem.t Lwt.t
-  (*val pop : string -> (Elem.t * string) Lwt.t*)
+  val pop : string -> (Elem.t * string) Lwt.t
 end
 
-module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
+module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
   val init : unit -> string Lwt.t
 
   val insert : string -> Elem.t -> string Lwt.t
@@ -39,7 +39,7 @@ module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
 end
 
 module Imperative : sig
-  module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
+  module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
     val size : string -> int Lwt.t
 
     val cons : string -> ?key:string -> Elem.t -> unit Lwt.t
@@ -59,7 +59,7 @@ module Imperative : sig
     val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
   end
 
-  module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
+  module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
     val insert : string -> Elem.t -> unit Lwt.t
 
     val find_min : string -> Elem.t Lwt.t
