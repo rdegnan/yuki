@@ -1,6 +1,5 @@
 open Lwt
 open Riak
-open Riak
 open Riak_kv_piqi
 open Ag_util
 open Yuki_j
