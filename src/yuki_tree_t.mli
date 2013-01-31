@@ -16,5 +16,5 @@ type 'a digit = [
 type 'a fg = [
     `Nil
   | `Single of 'a
-  | `Deep of (string * 'a digit * string * 'a digit)
+  | `Deep of (string * 'a digit * string option * 'a digit)
 ]

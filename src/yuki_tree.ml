@@ -8,7 +8,7 @@ exception Empty
 
 module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) = struct
   let empty = `Nil
-  let is_empty = function `Nil -> true | `Single _ | `Deep _ -> false
+  let is_empty = function `Nil -> true | _ -> false
 
   let reader v lexbuf = Elem.of_string (Yojson.Safe.read_string v lexbuf)
   let writer ob x = Yojson.Safe.write_string ob (Elem.to_string x)
@@ -20,6 +20,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
         | _ -> raise Not_found
     )
 
+  let get_opt reader = function
+    | None -> return `Nil
+    | Some m -> get reader m
+
   let put writer ?key ?(ops=[Put_return_head true; Put_if_none_match true]) x =
     Conn.with_connection (fun conn ->
       match_lwt riak_put conn Elem.bucket key (Json.to_string (write_fg writer) x) ops with
@@ -29,6 +33,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
             | None -> raise Not_found
         )
     )
+
+  let put_opt writer = function
+    | `Nil -> return None
+    | m ->
+      lwt m' = put writer m in
+      return (Some m')
 
   (*---------------------------------*)
   (*              fold               *)
@@ -103,12 +113,9 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
   let node3 : 'a. measure:('a -> Monoid.t) -> 'a -> 'a -> 'a -> 'a node = fun ~measure a b c ->
     `Node3 (Monoid.to_string (Monoid.combine (measure a) (Monoid.combine (measure b) (measure c))), a, b, c)
 
-  let deep : 'a. 'a Json.writer -> 'a digit -> 'a node fg -> 'a digit -> 'a fg Lwt.t = fun writer pr m sf ->
-    let v = measure_digit pr in
-    let v = Monoid.combine v (measure_t_node m) in
-    let v = Monoid.combine v (measure_digit sf) in
-    lwt m' = put (write_node writer) m in
-    return (`Deep (Monoid.to_string v, pr, m', sf))
+  let deep : 'a. 'a node Json.writer -> 'a digit -> 'a node fg -> 'a digit -> 'a fg Lwt.t = fun writer pr m sf ->
+    lwt m' = put_opt writer m in
+    return (`Deep (Monoid.to_string (Monoid.combine (Monoid.combine (measure_digit pr) (measure_t_node m)) (measure_digit sf)), pr, m', sf))
 
   let one_node : 'a. 'a node -> 'a node digit = fun a ->
     `One (Monoid.to_string (measure_node a), a)
@@ -164,12 +171,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
     | `Nil ->
       return (`Single a)
     | `Single b ->
-      deep writer (one_node a) `Nil (one_node b)
+      deep (write_node writer) (one_node a) `Nil (one_node b)
     | `Deep (_, `Four (_, b, c, d, e), m, sf) ->
       let reader' = read_node reader and writer' = write_node writer in
-      lwt m' = get reader' m in
+      lwt m' = get_opt reader' m in
       lwt m'' = cons_aux reader' writer' m' (node3_node c d e) in
-      deep writer (two_node a b) m'' sf
+      deep writer' (two_node a b) m'' sf
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (measure_node a) (Monoid.of_string v)), cons_digit_node pr a, m, sf))
   let cons ~measure t a =
@@ -177,12 +184,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
     | `Nil ->
       return (`Single a)
     | `Single b ->
-      deep writer (one ~measure a) `Nil (one ~measure b)
+      deep (write_node writer) (one ~measure a) `Nil (one ~measure b)
     | `Deep (_, `Four (_, b, c, d, e), m, sf) ->
       let reader' = read_node reader and writer' = write_node writer in
-      lwt m' = get reader' m in
+      lwt m' = get_opt reader' m in
       lwt m'' = cons_aux reader' writer' m' (node3 ~measure c d e) in
-      deep writer (two ~measure a b) m'' sf
+      deep writer' (two ~measure a b) m'' sf
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (measure a) (Monoid.of_string v)), cons_digit ~measure pr a, m, sf))
 
@@ -191,12 +198,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
     | `Nil ->
       return (`Single a)
     | `Single b ->
-      deep writer (one_node b) `Nil (one_node a)
+      deep (write_node writer) (one_node b) `Nil (one_node a)
     | `Deep (_, pr, m, `Four (_, b, c, d, e)) ->
       let reader' = read_node reader and writer' = write_node writer in
-      lwt m' = get reader' m in
+      lwt m' = get_opt reader' m in
       lwt m'' = snoc_aux reader' writer' m' (node3_node b c d) in
-      deep writer pr m'' (two_node e a)
+      deep writer' pr m'' (two_node e a)
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure_node a)), pr, m, snoc_digit_node sf a))
   let snoc ~measure t a =
@@ -204,30 +211,30 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
     | `Nil ->
       return (`Single a)
     | `Single b ->
-      deep writer (one ~measure b) `Nil (one ~measure a)
+      deep (write_node writer) (one ~measure b) `Nil (one ~measure a)
     | `Deep (_, pr, m, `Four (_, b, c, d, e)) ->
       let reader' = read_node reader and writer' = write_node writer in
-      lwt m' = get reader' m in
+      lwt m' = get_opt reader' m in
       lwt m'' = snoc_aux reader' writer' m' (node3 ~measure b c d) in
-      deep writer pr m'' (two ~measure e a)
+      deep writer' pr m'' (two ~measure e a)
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure a)), pr, m, snoc_digit ~measure sf a))
 
   (*---------------------------------*)
   (*     various conversions         *)
   (*---------------------------------*)
-  (*let to_tree_digit_node : 'a. 'a digit -> 'a fg = fun d ->
+  let to_tree_digit_node : 'a. 'a node digit -> 'a node fg = fun d ->
     match d with
     | `One (_, a) -> `Single a
-    | `Two (v, a, b) -> `Deep (v, one_node a, `Nil, one_node b)
-    | `Three (v, a, b, c) -> `Deep (v, two_node a b, `Nil, one_node c)
-    | `Four (v, a, b, c, d) -> `Deep (v, three_node a b c, `Nil, one_node d)
-  let to_tree_digit ~measure d =
+    | `Two (v, a, b) -> `Deep (v, one_node a, None, one_node b)
+    | `Three (v, a, b, c) -> `Deep (v, two_node a b, None, one_node c)
+    | `Four (v, a, b, c, d) -> `Deep (v, three_node a b c, None, one_node d)
+  let to_tree_digit : 'a. measure:('a -> Monoid.t) -> 'a digit -> 'a fg = fun ~measure d ->
     match d with
     | `One (_, a) -> `Single a
-    | `Two (v, a, b) -> `Deep (v, one ~measure a, `Nil, one ~measure b)
-    | `Three (v, a, b, c) -> `Deep (v, two ~measure a b, `Nil, one ~measure c)
-    | `Four (v, a, b, c, d) -> `Deep (v, three ~measure a b c, `Nil, one ~measure d)
+    | `Two (v, a, b) -> `Deep (v, one ~measure a, None, one ~measure b)
+    | `Three (v, a, b, c) -> `Deep (v, two ~measure a b, None, one ~measure c)
+    | `Four (v, a, b, c, d) -> `Deep (v, three ~measure a b c, None, one ~measure d)
   (*let to_tree_list ~measure = function
     | [] -> `Nil
     | [a] -> `Single a
@@ -236,16 +243,16 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
     | [a; b; c; d] -> deep (three ~measure a b c) `Nil (one ~measure d)
     | _ -> assert false*)
 
-  let to_digit_node = function
+  let to_digit_node : 'a. 'a node -> 'a digit = function
     | `Node2 (v, a, b) -> `Two (v, a, b)
     | `Node3 (v, a, b, c) -> `Three (v, a, b, c)
-  let to_digit_list ~measure = function
+  let to_digit_list : 'a. measure:('a -> Monoid.t) -> 'a list -> 'a digit = fun ~measure -> function
     | [a] -> one ~measure a
     | [a; b] -> two ~measure a b
     | [a; b; c] -> three ~measure a b c
     | [a; b; c; d] -> four ~measure a b c d
     | _ -> assert false
-  let to_digit_list_node = function
+  let to_digit_list_node : 'a. 'a node list -> 'a node digit = function
     | [a] -> one_node a
     | [a; b] -> two_node a b
     | [a; b; c] -> three_node a b c
@@ -255,145 +262,137 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Monoid:Yuki_make.Monoid) =
   (*---------------------------------*)
   (*     front / rear / etc.         *)
   (*---------------------------------*)
-  let head_digit = function
+  let head_digit : 'a. 'a digit -> 'a = function
     | `One (_, a)
     | `Two (_, a, _)
     | `Three (_, a, _, _)
     | `Four (_, a, _, _, _) -> a
-  let last_digit = function
+  let last_digit : 'a. 'a digit -> 'a = function
     | `One (_, a)
     | `Two (_, _, a)
     | `Three (_, _, _, a)
     | `Four (_, _, _, _, a) -> a
-  let tail_digit_node = function
+  let tail_digit_node : 'a. 'a node digit -> 'a node digit = function
     | `One _ -> assert false
     | `Two (_, _, a) -> one_node a
     | `Three (_, _, a, b) -> two_node a b
     | `Four (_, _, a, b, c) -> three_node a b c
-  let tail_digit ~measure = function
+  let tail_digit : 'a. measure:('a -> Monoid.t) -> 'a digit -> 'a digit = fun ~measure -> function
     | `One _ -> assert false
     | `Two (_, _, a) -> one ~measure a
     | `Three (_, _, a, b) -> two ~measure a b
     | `Four (_, _, a, b, c) -> three ~measure a b c
-  let init_digit_node = function
+  let init_digit_node : 'a. 'a node digit -> 'a node digit = function
     | `One _ -> assert false
     | `Two (_, a, _) -> one_node a
     | `Three (_, a, b, _) -> two_node a b
     | `Four (_, a, b, c, _) -> three_node a b c
-  let init_digit ~measure = function
+  let init_digit : 'a. measure:('a -> Monoid.t) -> 'a digit -> 'a digit = fun ~measure -> function
     | `One _ -> assert false
     | `Two (_, a, _) -> one ~measure a
     | `Three (_, a, b, _) -> two ~measure a b
     | `Four (_, a, b, c, _) -> three ~measure a b c
 
-  type ('a, 'rest) view =
+  type 'a view =
     | Vnil
-    | Vcons of 'a * 'rest
+    | Vcons of 'a * 'a fg
 
-  let rec view_left_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node fg -> ('a node, 'a node fg) view Lwt.t = fun reader writer -> function
+  let rec view_left_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node fg -> 'a node view Lwt.t = fun reader writer -> function
     | `Nil -> return Vnil
     | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, `One (_, a), m, sf) ->
       let reader' = read_node reader and writer' = write_node writer in
-      lwt m' = get reader' m in
+      lwt m' = get_opt reader' m in
       lwt m'' = view_left_aux reader' writer' m' in
       lwt vcons =
         match m'' with
         | Vnil -> return (to_tree_digit_node sf)
-        | Vcons (a, m') -> deep writer (to_digit_node a) m' sf in
-      Vcons (a, vcons)
+        | Vcons (a, m') -> deep writer' (to_digit_node a) m' sf in
+      return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let vcons = deep (tail_digit_node pr) m sf in
-      Vcons (head_digit pr, vcons)
-  let view_left ~measure = function
-    | `Nil -> Vnil
-    | `Single x -> Vcons (x, `Nil)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt vcons = deep writer' (tail_digit_node pr) m' sf in
+      return (Vcons (head_digit pr, vcons))
+  let view_left : 'a. measure:('a -> Monoid.t) -> 'a Json.reader -> 'a Json.writer -> 'a fg -> 'a view Lwt.t = fun ~measure reader writer -> function
+    | `Nil -> return Vnil
+    | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, `One (_, a), m, sf) ->
-      let vcons =
-        match view_left_aux m with
-        | Vnil -> to_tree_digit ~measure sf
-        | Vcons (a, m') -> deep (to_digit_node a) m' sf in
-      Vcons (a, vcons)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt m'' = view_left_aux reader' writer' m' in
+      lwt vcons =
+        match m'' with
+        | Vnil -> return (to_tree_digit ~measure sf)
+        | Vcons (a, m') -> deep writer' (to_digit_node a) m' sf in
+      return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let vcons = deep (tail_digit ~measure pr) m sf in
-      Vcons (head_digit pr, vcons)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt vcons = deep writer' (tail_digit ~measure pr) m' sf in
+      return (Vcons (head_digit pr, vcons))
 
-  let rec view_right_aux : 'a. 'a node fg -> ('a node, 'a node fg) view =
-    function
-    | `Nil -> Vnil
-    | `Single x -> Vcons (x, `Nil)
+  let rec view_right_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node fg -> 'a node view Lwt.t = fun reader writer -> function
+    | `Nil -> return Vnil
+    | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, pr, m, `One (_, a)) ->
-      let vcons =
-        match view_right_aux m with
-        | Vnil -> to_tree_digit_node pr
-        | Vcons (a, m') -> deep pr m' (to_digit_node a) in
-      Vcons (a, vcons)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt m'' = view_right_aux reader' writer' m' in
+      lwt vcons =
+        match m'' with
+        | Vnil -> return (to_tree_digit_node pr)
+        | Vcons (a, m') -> deep writer' pr m' (to_digit_node a) in
+      return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let vcons = deep pr m (init_digit_node sf) in
-      Vcons (last_digit sf, vcons)
-  let view_right ~measure = function
-    | `Nil -> Vnil
-    | `Single x -> Vcons (x, `Nil)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt vcons = deep writer' pr m' (init_digit_node sf) in
+      return (Vcons (last_digit sf, vcons))
+  let view_right : 'a. measure:('a -> Monoid.t) -> 'a Json.reader -> 'a Json.writer -> 'a fg -> 'a view Lwt.t = fun ~measure reader writer -> function
+    | `Nil -> return Vnil
+    | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, pr, m, `One (_, a)) ->
-      let vcons =
-        match view_right_aux m with
-        | Vnil -> to_tree_digit ~measure pr
-        | Vcons (a, m') -> deep pr m' (to_digit_node a) in
-      Vcons (a, vcons)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt m'' = view_right_aux reader' writer' m' in
+      lwt vcons =
+        match m'' with
+        | Vnil -> return (to_tree_digit ~measure pr)
+        | Vcons (a, m') -> deep writer' pr m' (to_digit_node a) in
+      return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let vcons = deep pr m (init_digit ~measure sf) in
-      Vcons (last_digit sf, vcons)
+      let reader' = read_node reader and writer' = write_node writer in
+      lwt m' = get_opt reader' m in
+      lwt vcons = deep writer' pr m' (init_digit ~measure sf) in
+      return (Vcons (last_digit sf, vcons))
 
-  let head_exn = function
+  let head = function
     | `Nil -> raise Empty
     | `Single a -> a
     | `Deep (_, pr, _, _) -> head_digit pr
-  let head = function
-    | `Nil -> None
-    | `Single a -> Some a
-    | `Deep (_, pr, _, _) -> Some (head_digit pr)
 
-  let last_exn = function
+  let last = function
     | `Nil -> raise Empty
     | `Single a -> a
     | `Deep (_, _, _, sf) -> last_digit sf
-  let last = function
-    | `Nil -> None
-    | `Single a -> Some a
-    | `Deep (_, _, _, sf) -> Some (last_digit sf)
 
-  let tail ~measure t =
-    match view_left ~measure t with
-    | Vnil -> None
-    | Vcons (_, tl) -> Some tl
-  let tail_exn ~measure t =
+  (*let tail ~measure t =
     match view_left ~measure t with
     | Vnil -> raise Empty
     | Vcons (_, tl) -> tl
 
   let front ~measure t =
     match view_left ~measure t with
-    | Vnil -> None
-    | Vcons (hd, tl) -> Some (tl, hd)
-  let front_exn ~measure t =
-    match view_left ~measure t with
     | Vnil -> raise Empty
     | Vcons (hd, tl) -> (tl, hd)
 
   let init ~measure t =
     match view_right ~measure t with
-    | Vnil -> None
-    | Vcons (_, tl) -> Some tl
-  let init_exn ~measure t =
-    match view_right ~measure t with
     | Vnil -> raise Empty
     | Vcons (_, tl) -> tl
 
   let rear ~measure t =
-    match view_right ~measure t with
-    | Vnil -> None
-    | Vcons (hd, tl) -> Some (tl, hd)
-  let rear_exn ~measure t =
     match view_right ~measure t with
     | Vnil -> raise Empty
     | Vcons (hd, tl) -> (tl, hd)*)
