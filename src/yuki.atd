@@ -1,3 +1,5 @@
+(* -*- typerex -*- *)
+
 type rlist = (int * string) list
 
 type 'a pair = ('a * 'a)

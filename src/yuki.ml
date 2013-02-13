@@ -47,6 +47,38 @@ module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let pop head = Client.write' head Impl.pop
 end
 
+module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+  module Impl = Yuki_tree.Make(Conn)(Elem)(struct
+    module Monoid = struct
+      type t = int
+      let of_string = int_of_string
+      let to_string = string_of_int
+      let zero = 0
+      let combine = (+)
+    end
+    type t = Elem.t
+    let measure _ = 1
+  end)
+  module Client = Client.Make(Conn)(struct
+    type t = string Yuki_tree_j.fg
+    let of_string x = Json.from_string (Yuki_tree_j.read_fg Yojson.Safe.read_string) x
+    let to_string x = Json.to_string (Yuki_tree_j.write_fg Yojson.Safe.write_string) x
+    let bucket = Elem.bucket
+  end)
+
+  let init () = Client.put Impl.empty []
+
+  let cons head x = Client.write head (Impl.cons x)
+  let snoc head x = Client.write head (Impl.snoc x)
+  let head head = Client.read head Impl.head
+  let last head = Client.read head Impl.last
+
+  let reverse head = Client.write head Impl.reverse
+
+  let fold_left head f x = Client.read head (Impl.fold_left f x)
+  let fold_right head f x = Client.read head (Impl.fold_right f x)
+end
+
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module Impl = Yuki_bootstrap.Make(Conn)(Elem)
   module Client = Client.Make(Conn)(Impl.BootstrappedElem)

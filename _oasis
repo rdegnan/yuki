@@ -10,5 +10,5 @@ BuildTools:  ocamlbuild
 Library "yuki"
   Path: src
   Modules: Yuki, Yuki_make
-  InternalModules: Client, Yuki_t, Yuki_j, Yuki_rlist, Yuki_queue, Yuki_tree, Yuki_heap, Yuki_bootstrap
+  InternalModules: Client, Yuki_t, Yuki_j, Yuki_tree_t, Yuki_tree_j, Yuki_rlist, Yuki_queue, Yuki_tree, Yuki_heap, Yuki_bootstrap
   BuildDepends: lwt, lwt.unix, lwt.syntax, riak, atdgen

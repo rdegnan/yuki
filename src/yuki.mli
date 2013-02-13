@@ -28,6 +28,20 @@ module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val pop : string -> (Elem.t * string) Lwt.t
 end
 
+module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+  val init : unit -> string Lwt.t
+
+  val cons : string -> Elem.t -> string Lwt.t
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val reverse : string -> string Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
   val init : unit -> string Lwt.t
 
