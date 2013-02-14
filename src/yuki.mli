@@ -37,6 +37,7 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val last : string -> Elem.t Lwt.t
 
   val reverse : string -> string Lwt.t
+  val lookup : string -> (int -> bool) -> Elem.t Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t

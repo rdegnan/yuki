@@ -28,7 +28,7 @@ module type Monoid = sig
 end
 
 module type Measured = sig
-  module Monoid : Monoid
   type t
+  module Monoid : Monoid
   val measure : t -> Monoid.t
 end

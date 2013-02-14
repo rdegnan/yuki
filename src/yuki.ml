@@ -49,6 +49,7 @@ end
 
 module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   module Impl = Yuki_tree.Make(Conn)(Elem)(struct
+    type t = Elem.t
     module Monoid = struct
       type t = int
       let of_string = int_of_string
@@ -56,7 +57,6 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
       let zero = 0
       let combine = (+)
     end
-    type t = Elem.t
     let measure _ = 1
   end)
   module Client = Client.Make(Conn)(struct
@@ -74,6 +74,7 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let last head = Client.read head Impl.last
 
   let reverse head = Client.write head Impl.reverse
+  let lookup head p = Client.read head (Impl.lookup p)
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)

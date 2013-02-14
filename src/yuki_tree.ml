@@ -21,7 +21,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
         | Some { obj_value = Some value } -> return (Json.from_string (read_fg reader) value)
         | _ -> raise Not_found
     )
-
   let get_fg reader = function
     | None -> return `Nil
     | Some m -> get_fg_aux reader m
@@ -35,12 +34,15 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
             | None -> raise Not_found
         )
     )
-
   let put_fg writer = function
     | `Nil -> return None
     | m ->
       lwt m' = put_fg_aux writer m in
       return (Some m')
+
+  let get_elem key =
+    lwt { value } = get key in
+    return value
 
   let put_elem x =
     lwt key = put x [] in
@@ -106,7 +108,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
       fold_left_digit f acc sf
   let fold_left f =
     fold_left_aux read_string (fun acc elt ->
-      lwt { value = elt' } = get elt in
+      lwt elt' = get_elem elt in
       f acc elt'
     )
 
@@ -121,7 +123,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
       fold_right_digit f acc pr
   let fold_right f =
     fold_right_aux read_string (fun elt acc ->
-      lwt { value = elt' } = get elt in
+      lwt elt' = get_elem elt in
       f elt' acc
     )
 
@@ -376,8 +378,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
   let view_left : string fg -> Elem.t view Lwt.t = function
     | `Nil -> return Vnil
     | `Single x ->
-      lwt { value } = get x in
-      return (Vcons (value, `Nil))
+      lwt x' = get_elem x in
+      return (Vcons (x', `Nil))
     | `Deep (_, `One (_, a), m, sf) ->
       let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m in
@@ -430,21 +432,13 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
 
   let head = function
     | `Nil -> raise Empty
-    | `Single a ->
-      lwt { value } = get a in
-      return value
-    | `Deep (_, pr, _, _) ->
-      lwt { value } = get (head_digit pr) in
-      return value
+    | `Single a -> get_elem a
+    | `Deep (_, pr, _, _) -> get_elem (head_digit pr)
 
   let last = function
     | `Nil -> raise Empty
-    | `Single a ->
-      lwt { value } = get a in
-      return value
-    | `Deep (_, _, _, sf) ->
-      lwt { value } = get (last_digit sf) in
-      return value
+    | `Single a -> get_elem a
+    | `Deep (_, _, _, sf) -> get_elem (last_digit sf)
 
   (*let tail ~measure t =
     match_lwt view_left ~measure read_string write_string t with
@@ -665,64 +659,111 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
   (*---------------------------------*)
   (*            lookup               *)
   (*---------------------------------*)
-  let lookup_digit : 'a. measure:('a -> Monoid.t) -> (Monoid.t -> bool) -> Monoid.t -> 'a digit -> Monoid.t * 'a = fun ~measure p i -> function
+  let lookup_digit_node : 'a. (Monoid.t -> bool) -> Monoid.t -> 'a node digit -> Monoid.t * 'a node = fun p i -> function
     | `One (_, a) -> Monoid.zero, a
     | `Two (_, a, b) ->
-      let m_a = measure a in
+      let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
       if p i' then Monoid.zero, a else m_a, b
     | `Three (_, a, b, c) ->
-      let m_a = measure a in
+      let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
       if p i' then Monoid.zero, a else
-        let m_b = measure b in
+        let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
         if p i'' then m_a, b else Monoid.combine m_a m_b, c
     | `Four (_, a, b, c, d) ->
-      let m_a = measure a in
+      let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
       if p i' then Monoid.zero, a else
-        let m_b = measure b in
+        let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
         if p i'' then m_a, b else
-          let m_c = measure c in
+          let m_c = measure_node c in
           let i''' = Monoid.combine i'' m_c in
           if p i''' then Monoid.combine m_a m_b, c else Monoid.combine (Monoid.combine m_a m_b) m_c, d
 
-  let lookup_node : 'a. measure:('a -> Monoid.t) -> (Monoid.t -> bool) -> Monoid.t -> 'a node -> Monoid.t * 'a = fun ~measure p i -> function
+  let lookup_digit p i = function
+    | `One (_, a) -> get_elem a
+    | `Two (_, a, b) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if p i' then return a' else get_elem b
+    | `Three (_, a, b, c) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if p i' then return a' else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if p i'' then return b' else get_elem c
+    | `Four (_, a, b, c, d) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if p i' then return a' else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if p i'' then return b' else
+          lwt c' = get_elem c in
+          let i''' = Monoid.combine i'' (measure c') in
+          if p i''' then return c' else get_elem d
+
+  let lookup_node_node : 'a. (Monoid.t -> bool) -> Monoid.t -> 'a node node -> Monoid.t * 'a node = fun p i -> function
     | `Node2 (_, a, b) ->
-      let m_a = measure a in
+      let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
       if p i' then Monoid.zero, a else m_a, b
     | `Node3 (_, a, b, c) ->
-      let m_a = measure a in
+      let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
       if p i' then Monoid.zero, a else
-        let m_b = measure b in
+        let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
         if p i'' then m_a, b else Monoid.combine m_a m_b, c
 
-  let rec lookup_tree : 'a. measure:('a -> Monoid.t) -> 'a Json.reader -> (Monoid.t -> bool) -> Monoid.t -> 'a fg -> (Monoid.t * 'a) Lwt.t = fun ~measure reader p i -> function
+  let lookup_node p i = function
+    | `Node2 (_, a, b) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if p i' then return a' else get_elem b
+    | `Node3 (_, a, b, c) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if p i' then return a' else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if p i'' then return b' else get_elem c
+
+  let rec lookup_aux : 'a. 'a node Json.reader -> (Monoid.t -> bool) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) Lwt.t = fun reader p i -> function
     | `Nil -> raise Empty
     | `Single x -> return (Monoid.zero, x)
     | `Deep (_, pr, m, sf) ->
       let m_pr = measure_digit pr in
-      let vpr = Monoid.combine i m_pr in
-      if p vpr then
-        return (lookup_digit ~measure p i pr)
-      else
+      let i' = Monoid.combine i m_pr in
+      if p i' then return (lookup_digit_node p i pr) else
         let reader' = read_node reader in
         lwt m' = get_fg reader' m in
         let m_m = measure_t_node m' in
-        let vm = Monoid.combine vpr m_m in
-        if p vm then
-          lwt v_left, node = lookup_tree ~measure:measure_node reader' p vpr m' in
-          let v, x = lookup_node ~measure p (Monoid.combine vpr v_left) node in
+        let i'' = Monoid.combine i' m_m in
+        if p i'' then
+          lwt v_left, node = lookup_aux reader' p i' m' in
+          let v, x = lookup_node_node p (Monoid.combine i' v_left) node in
           return (Monoid.combine (Monoid.combine m_pr v_left) v, x)
         else
-          let v, x = lookup_digit ~measure p vm sf in
+          let v, x = lookup_digit_node p i'' sf in
           return (Monoid.combine (Monoid.combine m_pr m_m) v, x)
 
-  let lookup ~measure p t =
-    lookup_tree ~measure read_string p Monoid.zero t >|= snd
+  let lookup p = function
+    | `Nil -> raise Empty
+    | `Single x -> get_elem x
+    | `Deep (_, pr, m, sf) ->
+      let i' = measure_digit pr in
+      if p i' then lookup_digit p Monoid.zero pr else
+        let reader = read_node read_string in
+        lwt m' = get_fg reader m in
+        let i'' = Monoid.combine i' (measure_t_node m') in
+        if p i'' then
+          lwt v_left, node = lookup_aux reader p i' m' in
+          lookup_node p (Monoid.combine i' v_left) node
+        else
+          lookup_digit p i'' sf
 end
