@@ -1,6 +1,7 @@
 open Lwt
 open Ag_util
 open Yuki_j
+open Yojson.Safe
 
 module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   module Impl = Yuki_rlist.Make(Conn)(Elem)
@@ -47,18 +48,8 @@ module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let pop head = Client.write' head Impl.pop
 end
 
-module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
-  module Impl = Yuki_tree.Make(Conn)(Elem)(struct
-    type t = Elem.t
-    module Monoid = struct
-      type t = int
-      let of_string = int_of_string
-      let to_string = string_of_int
-      let zero = 0
-      let combine = (+)
-    end
-    let measure _ = 1
-  end)
+module Tree'(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
+  module Impl = Yuki_tree.Make(Conn)(Elem)(Measure)
   module Client = Client.Make(Conn)(struct
     type t = string Yuki_tree_j.fg
     let of_string x = Json.from_string (Yuki_tree_j.read_fg Yojson.Safe.read_string) x
@@ -78,11 +69,42 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
   let reverse head = Client.write head Impl.reverse
   let delete head p = Client.write head (Impl.delete p)
+  let insert head x p = Client.write head (Impl.insert x p)
   let lookup head p = Client.read head (Impl.lookup p)
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
 end
+
+module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = Tree'(Conn)(Elem)(struct
+  type t = Elem.t
+  module Monoid = struct
+    type t = int
+    let of_string = int_of_string
+    let to_string = string_of_int
+    let zero = 0
+    let combine = (+)
+  end
+  let measure _ = 1
+end)
+
+module Tree2(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = Tree'(Conn)(Elem)(struct
+  type t = Elem.t
+  module Monoid = struct
+    type t = Elem.t option
+    let of_string = function
+      | "" -> None
+      | str -> Some (Elem.of_string str)
+    let to_string = function
+      | None -> ""
+      | Some elt -> Elem.to_string elt
+    let zero = None
+    let combine x = function
+      | None -> x
+      | y -> y
+  end
+  let measure x = Some x
+end)
 
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module Impl = Yuki_bootstrap.Make(Conn)(Elem)

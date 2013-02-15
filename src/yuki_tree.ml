@@ -7,10 +7,10 @@ open Yojson.Safe
 
 exception Empty
 
-module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measured with type t = Elem.t) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
   module Client = Client.Make(Conn)(Elem)
   open Client
-  open Measured
+  open Measure
 
   let empty = `Nil
   let is_empty = function `Nil -> true | _ -> false
@@ -805,6 +805,11 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measured:Yuki_make.Measure
         append l r
       else
         return t
+
+  let insert x p t =
+    lwt (l, r) = split p t in
+    lwt r' = cons x r in
+    append l r'
 
   (*---------------------------------*)
   (*            lookup               *)

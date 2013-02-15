@@ -47,6 +47,46 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 end
 
+module Tree2(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+  val init : unit -> string Lwt.t
+
+  val cons : string -> Elem.t -> string Lwt.t
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val front : string -> (Elem.t * string) Lwt.t
+  val rear : string -> (Elem.t * string) Lwt.t
+
+  val reverse : string -> string Lwt.t
+  val delete : string -> (Elem.t option -> bool) -> string Lwt.t
+  val insert : string -> Elem.t -> (Elem.t option -> bool) -> string Lwt.t
+  val lookup : string -> (Elem.t option -> bool) -> Elem.t Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
+module Tree'(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : functor (Measure:Yuki_make.Measure with type t = Elem.t) -> sig
+  val init : unit -> string Lwt.t
+
+  val cons : string -> Elem.t -> string Lwt.t
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val front : string -> (Elem.t * string) Lwt.t
+  val rear : string -> (Elem.t * string) Lwt.t
+
+  val reverse : string -> string Lwt.t
+  val delete : string -> (Measure.Monoid.t -> bool) -> string Lwt.t
+  val insert : string -> Elem.t -> (Measure.Monoid.t -> bool) -> string Lwt.t
+  val lookup : string -> (Measure.Monoid.t -> bool) -> Elem.t Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
   val init : unit -> string Lwt.t
 
