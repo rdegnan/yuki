@@ -73,7 +73,11 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let head head = Client.read head Impl.head
   let last head = Client.read head Impl.last
 
+  let front head = Client.write' head Impl.front
+  let rear head = Client.write' head Impl.rear
+
   let reverse head = Client.write head Impl.reverse
+  let delete head p = Client.write head (Impl.delete p)
   let lookup head p = Client.read head (Impl.lookup p)
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
