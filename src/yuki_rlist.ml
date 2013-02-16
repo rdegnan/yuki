@@ -116,28 +116,46 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
             return (t1 @ t2, has_more)
         else page (i - w) n ts
 
-  let rec take_while_tree p = function
+  let rec skip_take_while_tree ~skip sp tp = function
       | { value = x; links = [] } ->
-          if p x then return ([x], true)
-          else return ([], false)
+          if skip && sp x then
+            return ([], true, skip)
+          else
+            if tp x then return ([x], true, false)
+            else return ([], false, false)
       | { value = x; links = [t1; t2] } ->
-          if p x then
-            lwt (acc, has_more) = get t1 >>= take_while_tree p in
+          if skip && sp x then
+            lwt (acc, has_more, skip) = get t1 >>= skip_take_while_tree ~skip sp tp in
             if has_more then
-              lwt (acc', has_more) = get t2 >>= take_while_tree p in
-              return (x :: acc @ acc', has_more)
-            else return (x :: acc, false)
-          else return ([], false)
+              lwt (acc', has_more, skip) = get t2 >>= skip_take_while_tree ~skip sp tp in
+              return (acc @ acc', has_more, skip)
+            else return (acc, has_more, skip)
+          else
+            if tp x then
+              lwt (acc, has_more, _) = get t1 >>= skip_take_while_tree ~skip:false sp tp in
+              if has_more then
+                lwt (acc', has_more, _) = get t2 >>= skip_take_while_tree ~skip:false sp tp in
+                return (x :: acc @ acc', has_more, false)
+              else return (x :: acc, has_more, false)
+            else return ([], false, false)
       | _ -> assert false
 
-  let rec take_while p = function
-    | [] -> return []
+  let rec do_skip_take_while ~skip sp tp = function
+    | [] -> return ([], skip)
     | (w, t) :: ts ->
-        lwt (acc, has_more) = get t >>= take_while_tree p in
+        lwt (acc, has_more, skip) = get t >>= skip_take_while_tree ~skip sp tp in
         if has_more then
-          lwt acc' = take_while p ts in
-          return (acc @ acc')
-        else return acc
+          lwt (acc', skip) = do_skip_take_while ~skip sp tp ts in
+          return ((acc @ acc'), skip)
+        else return (acc, skip)
+
+  let skip_take_while sp tp l =
+    lwt acc, skip = do_skip_take_while ~skip:true sp tp l in
+    return acc
+
+  let take_while p l =
+    lwt acc, skip = do_skip_take_while ~skip:false (fun x -> false) p l in
+    return acc
 
   let rec fold_left_tree f acc = function
     | { value = x; links = [] } -> f acc x

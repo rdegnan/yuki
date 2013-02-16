@@ -11,6 +11,7 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   (* lookup raises Subscript if index is out of bounds *)
 
   val page : string -> int -> int -> (Elem.t list * bool) Lwt.t
+  val skip_take_while : string -> (Elem.t -> bool) -> (Elem.t -> bool) -> Elem.t list Lwt.t
   val take_while : string -> (Elem.t -> bool) -> Elem.t list Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -41,6 +42,7 @@ module Imperative : sig
     (* lookup raises Subscript if index is out of bounds *)
 
     val page : string -> int -> int -> (Elem.t list * bool) Lwt.t
+    val skip_take_while : string -> (Elem.t -> bool) -> (Elem.t -> bool) -> Elem.t list Lwt.t
     val take_while : string -> (Elem.t -> bool) -> Elem.t list Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
