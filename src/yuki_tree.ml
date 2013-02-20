@@ -15,11 +15,14 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   let empty = `Nil
   let is_empty = function `Nil -> true | _ -> false
 
+  let reader = read_node read_string
+  let writer = write_node write_string
+
   let get_fg_aux reader key =
     Conn.with_connection (fun conn ->
       match_lwt riak_get conn Elem.bucket key [] with
         | Some { obj_value = Some value } -> return (Json.from_string (read_fg reader) value)
-        | _ -> raise Not_found
+        | _ -> raise_lwt Not_found
     )
   let get_fg reader = function
     | None -> return `Nil
@@ -31,7 +34,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         | Some { obj_key = Some key } -> return key
         | _ -> (match key with
             | Some key -> return key
-            | None -> raise Not_found
+            | None -> raise_lwt Not_found
         )
     )
   let put_fg writer = function
@@ -232,9 +235,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       return (singleton a)
     | `Single b ->
       lwt b' = get b in
-      deep (write_node write_string) (one a) `Nil (one b')
+      deep writer (one a) `Nil (one b')
     | `Deep (_, `Four (_, b, c, d, e), m, sf) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt b' = get b and c' = get c and d' = get d and e' = get e and m' = get_fg reader m in
       lwt m'' = cons_tree_aux reader writer (node3 c' d' e') m' in
       deep writer (two a b') m'' sf
@@ -262,9 +264,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       return (singleton a)
     | `Single b ->
       lwt b' = get b in
-      deep (write_node write_string) (one b') `Nil (one a)
+      deep writer (one b') `Nil (one a)
     | `Deep (_, pr, m, `Four (_, b, c, d, e)) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt b' = get b and c' = get c and d' = get d and e' = get e and m' = get_fg reader m in
       lwt m'' = snoc_tree_aux reader writer (node3 b' c' d') m' in
       deep writer pr m'' (two e' a)
@@ -427,7 +428,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Nil -> return Vnil
     | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, `One (_, a), m, sf) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m in
       lwt m'' = view_left_aux reader writer m' in
       lwt vcons =
@@ -436,7 +436,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         | Vcons (a, m') -> deep writer (to_digit_node a) m' sf in
       return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m and pr' = tail_digit pr in
       lwt vcons = deep writer pr' m' sf in
       return (Vcons (head_digit pr, vcons))
@@ -462,7 +461,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Nil -> return Vnil
     | `Single x -> return (Vcons (x, `Nil))
     | `Deep (_, pr, m, `One (_, a)) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m in
       lwt m'' = view_right_aux reader writer m' in
       lwt vcons =
@@ -471,31 +469,30 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         | Vcons (a, m') -> deep writer pr m' (to_digit_node a) in
       return (Vcons (a, vcons))
     | `Deep (_, pr, m, sf) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m and sf' = init_digit sf in
       lwt vcons = deep writer pr m' sf' in
       return (Vcons (last_digit sf, vcons))
 
   let head = function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single a -> get_elem a
     | `Deep (_, pr, _, _) -> get_elem (head_digit pr)
 
   let last = function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single a -> get_elem a
     | `Deep (_, _, _, sf) -> get_elem (last_digit sf)
 
   let front t =
     match_lwt view_left t with
-    | Vnil -> raise Empty
+    | Vnil -> raise_lwt Empty
     | Vcons (hd, tl) ->
       lwt hd' = get_elem hd in
       return (hd', tl)
 
   let rear t =
     match_lwt view_right t with
-    | Vnil -> raise Empty
+    | Vnil -> raise_lwt Empty
     | Vcons (hd, tl) ->
       lwt hd' = get_elem hd in
       return (hd', tl)
@@ -578,7 +575,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt x2' = get x2 in
       snoc_tree x2' t1
     | `Deep (_, pr1, m1, sf1), `Deep (_, pr2, m2, sf2) ->
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m1' = get_fg reader m1 and m2' = get_fg reader m2
       and ts = nodes (to_list_digit sf1) pr2 in
       lwt m = append_aux reader writer m1' ts m2' in
@@ -641,11 +637,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Nil
     | `Single _ as t -> return t
     | `Deep (_, pr, m, sf) ->
-      let reader' = read_node read_string and writer' = write_node write_string in
       lwt rev_pr = reverse_digit pr and rev_sf = reverse_digit sf in
-      lwt m' = get_fg reader' m in
-      lwt rev_m = reverse_aux reader' writer' reverse_node m' in
-      deep writer' rev_sf rev_m rev_pr
+      lwt m' = get_fg reader m in
+      lwt rev_m = reverse_aux reader writer reverse_node m' in
+      deep writer rev_sf rev_m rev_pr
 
   (*---------------------------------*)
   (*             split               *)
@@ -707,7 +702,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | _ ->
       deep writer (to_digit_list_node pr) m sf
   let deep_left pr m sf =
-    let reader = read_node read_string and writer = write_node write_string in
     match pr with
     | [] -> (
       match_lwt view_left_aux reader writer m with
@@ -728,7 +722,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | _ ->
       deep writer pr m (to_digit_list_node sf)
   let deep_right pr m sf =
-    let reader = read_node read_string and writer = write_node write_string in
     match sf with
     | [] -> (
       match_lwt view_right_aux reader writer m with
@@ -740,7 +733,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       deep writer pr m sf'
 
   let rec split_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> (Monoid.t -> bool) -> Monoid.t -> 'a node fg -> ('a node fg * 'a node * 'a node fg) Lwt.t = fun reader writer p i -> function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single x -> return (`Nil, x, `Nil)
     | `Deep (_, pr, m, sf) ->
       let vpr = Monoid.combine i (measure_digit pr) in
@@ -762,11 +755,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           lwt l' = deep_right_node reader' writer' pr m' l in
           return (l', x, to_tree_list_node r)
   let split_tree p = function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single x -> return (`Nil, x, `Nil)
     | `Deep (_, pr, m, sf) ->
       let vpr = measure_digit pr in
-      let reader = read_node read_string and writer = write_node write_string in
       lwt m' = get_fg reader m in
       if p vpr then
         lwt (l, x, r) = split_digit p Monoid.zero pr in
@@ -796,20 +788,88 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       else
         return (t, `Nil)
 
-  let delete p = function
-    | `Nil -> return `Nil
-    | t ->
-      lwt m_t = measure_t t in
-      if p m_t then
-        lwt (l, _, r) = split_tree p t in
-        append l r
-      else
-        return t
-
   let insert x p t =
     lwt (l, r) = split p t in
     lwt r' = cons x r in
     append l r'
+
+  (*---------------------------------*)
+  (*             find                *)
+  (*---------------------------------*)
+  let find_digit f i = function
+    | `One (_, a) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if f i' = 0 then return ([], a, []) else
+        raise_lwt Not_found
+    | `Two (_, a, b) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if f i' = 0 then return ([], a, [b]) else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if f i'' = 0 then return ([a], b, []) else
+          raise_lwt Not_found
+    | `Three (_, a, b, c) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if f i' = 0 then return ([], a, [b; c]) else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if f i'' = 0 then return ([a], b, [c]) else
+          lwt c' = get_elem c in
+          let i''' = Monoid.combine i'' (measure c') in
+          if f i''' = 0 then return ([a; b], c, []) else
+            raise_lwt Not_found
+    | `Four (_, a, b, c, d) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if f i' = 0 then return ([], a, [b; c; d]) else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if f i'' = 0 then return ([a], b, [c; d]) else
+          lwt c' = get_elem c in
+          let i''' = Monoid.combine i'' (measure c') in
+          if f i''' = 0 then return ([a; b], c, [d]) else
+            lwt d' = get_elem d in
+            let i'''' = Monoid.combine i''' (measure d') in
+            if f i'''' = 0 then return ([a; b; c], d, []) else
+              raise_lwt Not_found
+
+  let find f = function
+    | `Nil -> raise_lwt Empty
+    | `Single x ->
+      lwt x' = get_elem x in
+      if f (measure x') = 0 then return (`Nil, x, `Nil) else
+        raise_lwt Not_found
+    | `Deep (_, pr, m, sf) ->
+      let vpr = measure_digit pr in
+      lwt m' = get_fg reader m in
+      if f vpr <= 0 then
+        lwt (l, x, r) = find_digit f Monoid.zero pr in
+        lwt l' = to_tree_list l and r' = deep_left r m' sf in
+        return (l', x, r')
+      else
+        let vm = Monoid.combine vpr (measure_t_node m') in
+        if f vm <= 0 then
+          lwt (ml, xs, mr) = split_tree_aux reader writer (fun x -> f x <= 0) vpr m' in
+          lwt (l, x, r) = find_digit f (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
+          lwt l' = deep_right pr ml l and r' = deep_left r mr sf in
+          return (l', x, r')
+        else
+          lwt (l, x, r) = find_digit f vm sf in
+          lwt l' = deep_right pr m' l and r' = to_tree_list r in
+          return (l', x, r')
+
+  let delete f = function
+    | `Nil -> return `Nil
+    | t ->
+      lwt m_t = measure_t t in
+      if f m_t <= 0 then
+        lwt (l, _, r) = find f t in
+        append l r
+      else
+        raise_lwt Not_found
 
   (*---------------------------------*)
   (*            lookup               *)
@@ -889,7 +949,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         if p i'' then return b' else get_elem c
 
   let rec lookup_aux : 'a. 'a node Json.reader -> (Monoid.t -> bool) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) Lwt.t = fun reader p i -> function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single x -> return (Monoid.zero, x)
     | `Deep (_, pr, m, sf) ->
       let m_pr = measure_digit pr in
@@ -908,12 +968,11 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           return (Monoid.combine (Monoid.combine m_pr m_m) v, x)
 
   let lookup p = function
-    | `Nil -> raise Empty
+    | `Nil -> raise_lwt Empty
     | `Single x -> get_elem x
     | `Deep (_, pr, m, sf) ->
       let i' = measure_digit pr in
       if p i' then lookup_digit p Monoid.zero pr else
-        let reader = read_node read_string in
         lwt m' = get_fg reader m in
         let i'' = Monoid.combine i' (measure_t_node m') in
         if p i'' then

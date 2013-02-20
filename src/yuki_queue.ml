@@ -18,7 +18,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
       match_lwt riak_get conn Elem.bucket key [] with
         | Some { obj_key = Some key; obj_value = Some value; obj_links = links } ->
             return (Json.from_string (read_queue reader) value)
-        | _ -> raise Not_found
+        | _ -> raise_lwt Not_found
     )
 
   let put writer ?key ?(ops=[Put_return_head true; Put_if_none_match true]) x =
@@ -27,7 +27,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
         | Some { obj_key = Some key } -> return key
         | _ -> (match key with
             | Some key -> return key
-            | None -> raise Not_found
+            | None -> raise_lwt Not_found
         )
     )
 
@@ -47,7 +47,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let snoc = snoc_queue reader writer
 
   let head = function
-    | `Shallow `Zero -> raise Empty
+    | `Shallow `Zero -> raise_lwt Empty
     | `Shallow (`One x)
     | `Deep (`One x, _, _)
     | `Deep (`Two (x, _), _, _) -> return x
@@ -55,7 +55,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
    let rec pop_queue : 'a. 'a Json.reader -> 'a Json.writer -> 'a queue -> ('a * 'a queue) Lwt.t =
      fun reader writer -> function
-     | `Shallow `Zero -> raise Empty
+     | `Shallow `Zero -> raise_lwt Empty
      | `Shallow (`One x) -> return (x, `Shallow `Zero)
      | `Deep (`Two (x,y), m, r) -> return (x, `Deep (`One y, m, r))
      | `Deep (`One x, m, r) ->

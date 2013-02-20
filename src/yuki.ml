@@ -48,7 +48,7 @@ module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let pop head = Client.write' head Impl.pop
 end
 
-module Tree'(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
+module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
   module Impl = Yuki_tree.Make(Conn)(Elem)(Measure)
   module Client = Client.Make(Conn)(struct
     type t = string Yuki_tree_j.fg
@@ -67,16 +67,11 @@ module Tree'(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure
   let front head = Client.write' head Impl.front
   let rear head = Client.write' head Impl.rear
 
-  let reverse head = Client.write head Impl.reverse
-  let delete head p = Client.write head (Impl.delete p)
-  let insert head x p = Client.write head (Impl.insert x p)
-  let lookup head p = Client.read head (Impl.lookup p)
-
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
 end
 
-module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = Tree'(Conn)(Elem)(struct
+module Size(Elem:Yuki_make.Elem) = struct
   type t = Elem.t
   module Monoid = struct
     type t = int
@@ -86,25 +81,39 @@ module Tree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = Tree'(Conn)(Elem)(struct
     let combine = (+)
   end
   let measure _ = 1
-end)
+end
 
-module Tree2(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = Tree'(Conn)(Elem)(struct
-  type t = Elem.t
+module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+  include FingerTree(Conn)(Elem)(Size(Elem))
+
+  let size head = Client.read head Impl.measure_t
+
+  let delete head i = Client.write head (Impl.delete (compare (i + 1)))
+  let insert head x i = Client.write head (Impl.insert x ((<=) i))
+  let lookup head i = Client.read head (Impl.lookup ((<=) i))
+end
+
+module Product(M1:Yuki_make.Measure)(M2:Yuki_make.Measure with type t = M1.t) = struct
+  type t = M1.t
   module Monoid = struct
-    type t = Elem.t option
-    let of_string = function
-      | "" -> None
-      | str -> Some (Elem.of_string str)
-    let to_string = function
-      | None -> ""
-      | Some elt -> Elem.to_string elt
-    let zero = None
-    let combine x = function
-      | None -> x
-      | y -> y
+    type t = M1.Monoid.t * M2.Monoid.t
+    let of_string x = let (m1, m2) = pair_of_string read_string x in M1.Monoid.of_string m1, M2.Monoid.of_string m2
+    let to_string (m1, m2) = string_of_pair write_string (M1.Monoid.to_string m1, M2.Monoid.to_string m2)
+    let zero = M1.Monoid.zero, M2.Monoid.zero
+    let combine (m1, m2) (m1', m2') = M1.Monoid.combine m1 m1', M2.Monoid.combine m2 m2'
   end
-  let measure x = Some x
-end)
+  let measure x = M1.measure x, M2.measure x
+end
+
+module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
+  include FingerTree(Conn)(Elem)(Product(Measure)(Size(Elem)))
+
+  let size head = Client.read head (fun x -> Impl.measure_t x >|= snd)
+
+  let delete head i = Client.write head (Impl.delete (fun (m, _) -> compare i m))
+  let insert head x = Client.write head (Impl.insert x (fun (m, _) -> Measure.measure x <= m))
+  let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> i <= m))
+end
 
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module Impl = Yuki_bootstrap.Make(Conn)(Elem)

@@ -88,7 +88,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
     merge_trees ts1' ts2'
 
   let rec remove_min_tree = function
-    | [] -> raise Empty
+    | [] -> raise_lwt Empty
     | [t] ->
         lwt t = get t in
         return (t, [])

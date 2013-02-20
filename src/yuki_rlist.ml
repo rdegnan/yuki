@@ -27,13 +27,13 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
         return ((1, t) :: ts)
 
   let head = function
-    | [] -> raise Empty
+    | [] -> raise_lwt Empty
     | (w, t) :: _ ->
         lwt { value = x } = get t in
         return x
 
   let pop = function
-    | [] -> raise Empty
+    | [] -> raise_lwt Empty
     | (w, t) :: ts ->
         match_lwt get t with
           | { value = x; links = [] } -> return (x, ts)
@@ -42,7 +42,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
   let rec lookup_tree w i t = match w, i, t with
     | 1, 0, { value = x; links = [] } -> return x
-    | 1, _, { links = [] } -> raise Subscript
+    | 1, _, { links = [] } -> raise_lwt Subscript
     | _, 0, { value = x; links = [t1; t2] } -> return x
     | _, _, { links = [t1; t2] } ->
         if i <= w/2 then get t1 >>= lookup_tree (w/2) (i - 1)
@@ -50,7 +50,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
     | _ -> assert false
 
   let rec lookup i = function
-    | [] -> raise Subscript
+    | [] -> raise_lwt Subscript
     | (w, t) :: ts ->
         if i < w then get t >>= lookup_tree w i
         else lookup (i - w) ts
