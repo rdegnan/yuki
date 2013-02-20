@@ -1,4 +1,4 @@
-module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
+module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
   val size : string -> int Lwt.t
 
@@ -20,7 +20,68 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
   val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
 end
 
-module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
+module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+  val init : unit -> string Lwt.t
+
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val pop : string -> (Elem.t * string) Lwt.t
+end
+
+module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
+  val init : unit -> string Lwt.t
+
+  val cons : string -> Elem.t -> string Lwt.t
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val front : string -> (Elem.t * string) Lwt.t
+  val rear : string -> (Elem.t * string) Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
+module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+  val init : unit -> string Lwt.t
+  val size : string -> int Lwt.t
+
+  val cons : string -> Elem.t -> string Lwt.t
+  val snoc : string -> Elem.t -> string Lwt.t
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val front : string -> (Elem.t * string) Lwt.t
+  val rear : string -> (Elem.t * string) Lwt.t
+
+  val delete : string -> int -> string Lwt.t
+  val insert : string -> Elem.t -> int -> string Lwt.t
+  val lookup : string -> int -> Elem.t Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
+module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
+  val init : unit -> string Lwt.t
+  val size : string -> int Lwt.t
+
+  val head : string -> Elem.t Lwt.t
+  val last : string -> Elem.t Lwt.t
+
+  val front : string -> (Elem.t * string) Lwt.t
+  val rear : string -> (Elem.t * string) Lwt.t
+
+  val delete : string -> Measure.Monoid.t -> string Lwt.t
+  val insert : string -> Elem.t -> string Lwt.t
+  val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
+
+  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+end
+
+module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
   val init : unit -> string Lwt.t
 
   val insert : string -> Elem.t -> string Lwt.t
@@ -31,7 +92,7 @@ module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
 end
 
 module Imperative : sig
-  module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) : sig
+  module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
     val size : string -> int Lwt.t
 
     val cons : string -> ?key:string -> Elem.t -> unit Lwt.t
@@ -51,7 +112,7 @@ module Imperative : sig
     val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
   end
 
-  module Heap(Conn:Make.Conn)(Elem:Make.Ord) : sig
+  module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
     val insert : string -> Elem.t -> unit Lwt.t
 
     val find_min : string -> Elem.t Lwt.t

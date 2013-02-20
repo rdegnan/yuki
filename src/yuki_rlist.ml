@@ -4,15 +4,15 @@ open Riak
 exception Empty
 exception Subscript
 
-module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   module Client = Client.Make(Conn)(Elem)
   open Client
 
   let empty = []
   let is_empty ts = ts = []
 
-  let leaf ?key x = lwt t = put ?key x [] in return t.key
-  let node ?key x t1 t2 = lwt t = put ?key x [t1; t2] in return t.key
+  let leaf ?key x = put ?key x []
+  let node ?key x t1 t2 = put ?key x [t1; t2]
 
   let cons ?key x = function
     | (w1, t1) :: (w2, t2) :: ts' as ts ->
@@ -27,13 +27,13 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
         return ((1, t) :: ts)
 
   let head = function
-    | [] -> raise Empty
+    | [] -> raise_lwt Empty
     | (w, t) :: _ ->
         lwt { value = x } = get t in
         return x
 
   let pop = function
-    | [] -> raise Empty
+    | [] -> raise_lwt Empty
     | (w, t) :: ts ->
         match_lwt get t with
           | { value = x; links = [] } -> return (x, ts)
@@ -42,7 +42,7 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
 
   let rec lookup_tree w i t = match w, i, t with
     | 1, 0, { value = x; links = [] } -> return x
-    | 1, _, { links = [] } -> raise Subscript
+    | 1, _, { links = [] } -> raise_lwt Subscript
     | _, 0, { value = x; links = [t1; t2] } -> return x
     | _, _, { links = [t1; t2] } ->
         if i <= w/2 then get t1 >>= lookup_tree (w/2) (i - 1)
@@ -50,33 +50,10 @@ module Make(Conn:Make.Conn)(Elem:Make.Elem) = struct
     | _ -> assert false
 
   let rec lookup i = function
-    | [] -> raise Subscript
+    | [] -> raise_lwt Subscript
     | (w, t) :: ts ->
         if i < w then get t >>= lookup_tree w i
         else lookup (i - w) ts
-
-  let rec update_tree w i y t = match w, i, t with
-    | 1, 0, { links = [] } -> leaf y
-    | 1, _, { links = [] } -> raise Subscript
-    | _, 0, { links = [t1; t2] } -> node y t1 t2
-    | _, _, { value = x; links = [t1; t2] } ->
-        if i <= w/2 then
-          lwt t1' = get t1 >>= update_tree (w/2) (i - 1) y in
-          node x t1' t2
-        else
-          lwt t2' = get t2 >>= update_tree (w/2) (i - 1 - w/2) y in
-          node x t1 t2'
-    | _ -> assert false
-
-  let rec update i y = function
-    | [] -> raise Subscript
-    | (w, t) :: ts ->
-        if i < w then
-          lwt t' = get t >>= update_tree w i y in
-          return ((w, t') :: ts)
-        else
-          lwt ts' = update (i - w) y ts in
-          return ((w, t) :: ts')
 
   let rec page_tree w i n t =
     if n = 0 then return []

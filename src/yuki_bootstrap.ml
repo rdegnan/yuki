@@ -4,12 +4,12 @@ open Yuki_j
 
 exception Empty
 
-module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
+module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
   module BootstrappedElem = struct
       type t = E | H of (Elem.t * heap)
       let compare x y = match x, y with
         | H (x, _), H (y, _) -> Elem.compare x y
-        | _ -> raise Not_found
+        | _ -> assert false
       let of_string x = match bootstrap_of_string x with
         | `H (x, p) -> H (Elem.of_string x, p)
         | `E -> E
@@ -39,11 +39,11 @@ module Make(Conn:Make.Conn)(Elem:Make.Ord) = struct
   let insert x h = merge (H (x, PrimH.empty)) h
 
   let find_min = function
-    | E -> raise Empty
+    | E -> raise_lwt Empty
     | H (x, _) -> return x
 
   let delete_min = function
-    | E -> raise Empty
+    | E -> raise_lwt Empty
     | H (x, p) ->
         if PrimH.is_empty p then return (x, E)
         else match_lwt PrimH.delete_min p with

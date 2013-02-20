@@ -3,6 +3,15 @@
 
 type rlist = (int * string) list
 
+type 'a pair = ('a * 'a)
+
+type 'a digit = [ `Zero | `One of 'a | `Two of ('a * 'a) ]
+
+type 'a queue = [
+    `Shallow of 'a digit
+  | `Deep of ('a digit * string * 'a digit)
+]
+
 type node = (int * string * string list)
 
 type heap = string list
