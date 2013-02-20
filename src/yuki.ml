@@ -23,6 +23,7 @@ module RandomAccessList(Conn:Make.Conn)(Elem:Make.Elem) = struct
 
   let lookup head i = Client.read head (Impl.lookup i)
   let page head i n = Client.read head (Impl.page i n)
+  let skip_take_while head sp tp = Client.read head (Impl.skip_take_while sp tp)
   let take_while head p = Client.read head (Impl.take_while p)
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
@@ -64,6 +65,7 @@ module Imperative = struct
 
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup i)
     let page head i n = Client.read_default head Impl.empty (Impl.page i n)
+    let skip_take_while head sp tp = Client.read_default head Impl.empty (Impl.skip_take_while sp tp)
     let take_while head p = Client.read_default head Impl.empty (Impl.take_while p)
 
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
