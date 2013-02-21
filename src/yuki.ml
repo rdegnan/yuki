@@ -43,7 +43,7 @@ module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
   let init () = Client.put Impl.empty []
 
-  let snoc head x = Client.write head (Impl.snoc x)
+  let snoc head ?key x = Client.write head (Impl.snoc ?key x)
   let head head = Client.read head Impl.head
   let pop head = Client.write' head Impl.pop
 end
@@ -153,6 +153,61 @@ module Imperative = struct
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
 
     let map head f = Client.read_default head Impl.empty (Impl.map f)
+  end
+
+  module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+    module Impl = Yuki_queue.Make(Conn)(Elem)
+    module Client = Client.Make(Conn)(struct
+      type t = Elem.t queue
+      let of_string x = Json.from_string (read_queue Impl.reader) x
+      let to_string x = Json.to_string (write_queue Impl.writer) x
+      let bucket = Elem.bucket
+    end)
+
+    let snoc head ?key x = Client.write_default head Impl.empty (Impl.snoc ?key x)
+    let head head = Client.read_default head Impl.empty Impl.head
+    let pop head = Client.write_default' head Impl.empty Impl.pop
+  end
+
+  module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
+    module Impl = Yuki_tree.Make(Conn)(Elem)(Measure)
+    module Client = Client.Make(Conn)(struct
+      type t = string Yuki_tree_j.fg
+      let of_string x = Json.from_string (Yuki_tree_j.read_fg Yojson.Safe.read_string) x
+      let to_string x = Json.to_string (Yuki_tree_j.write_fg Yojson.Safe.write_string) x
+      let bucket = Elem.bucket
+    end)
+
+    let cons head ?key x = Client.write_default head Impl.empty (Impl.cons ?key x)
+    let snoc head ?key x = Client.write_default head Impl.empty (Impl.snoc ?key x)
+    let head head = Client.read_default head Impl.empty Impl.head
+    let last head = Client.read_default head Impl.empty Impl.last
+
+    let front head = Client.write_default' head Impl.empty Impl.front
+    let rear head = Client.write_default' head Impl.empty Impl.rear
+
+    let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
+    let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
+  end
+
+  module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
+    include FingerTree(Conn)(Elem)(Size(Elem))
+
+    let size head = Client.read_default head Impl.empty Impl.measure_t
+
+    let delete head i = Client.write_default head Impl.empty (Impl.delete (compare (i + 1)))
+    let insert head ?key x i = Client.write_default head Impl.empty (Impl.insert ?key x ((<=) i))
+    let lookup head i = Client.read_default head Impl.empty (Impl.lookup (compare (i + 1)))
+  end
+
+  module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
+    include FingerTree(Conn)(Elem)(Product(Measure)(Size(Elem)))
+
+    let size head = Client.read_default head  Impl.empty(fun x -> Impl.measure_t x >|= snd)
+
+    let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> compare i m))
+    let insert head ?key x = Client.write_default head Impl.empty (Impl.insert ?key x (fun (m, _) -> Measure.measure x <= m))
+    let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> compare i m))
   end
 
   module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct

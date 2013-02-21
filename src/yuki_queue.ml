@@ -31,20 +31,20 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
         )
     )
 
-  let rec snoc_queue : 'a .'a Json.reader -> 'a Json.writer -> 'a -> 'a queue -> 'a queue Lwt.t =
-    fun reader writer y -> function
+  let rec snoc_queue : 'a .'a Json.reader -> 'a Json.writer -> ?key:string -> 'a -> 'a queue -> 'a queue Lwt.t =
+    fun reader writer ?key y -> function
       | `Shallow `Zero -> return (`Shallow (`One y))
       | `Shallow (`One x) ->
-        lwt m = put writer (`Shallow `Zero) in
+        lwt m = put writer ?key (`Shallow `Zero) in
         return (`Deep (`Two (x,y), m, `Zero))
       | `Deep (f, m, `Zero) -> return (`Deep (f, m, `One y))
       | `Deep (f, m, `One x) ->
         let reader' = read_pair reader and writer' = write_pair writer in
-        lwt m' = get reader' m >>= snoc_queue reader' writer' (x,y) >>= put writer' in
+        lwt m' = get reader' m >>= snoc_queue reader' writer' (x,y) >>= put writer' ?key in
         return (`Deep (f, m', `Zero))
       | _ -> assert false
 
-  let snoc = snoc_queue reader writer
+  let snoc ?key = snoc_queue reader writer ?key
 
   let head = function
     | `Shallow `Zero -> raise_lwt Empty

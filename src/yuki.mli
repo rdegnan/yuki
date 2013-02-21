@@ -23,24 +23,9 @@ end
 module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
 
-  val snoc : string -> Elem.t -> string Lwt.t
-  val head : string -> Elem.t Lwt.t
-  val pop : string -> (Elem.t * string) Lwt.t
-end
-
-module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
-  val init : unit -> string Lwt.t
-
-  val cons : string -> ?key:string -> Elem.t -> string Lwt.t
   val snoc : string -> ?key:string -> Elem.t -> string Lwt.t
   val head : string -> Elem.t Lwt.t
-  val last : string -> Elem.t Lwt.t
-
-  val front : string -> (Elem.t * string) Lwt.t
-  val rear : string -> (Elem.t * string) Lwt.t
-
-  val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-  val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  val pop : string -> (Elem.t * string) Lwt.t
 end
 
 module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
@@ -110,6 +95,48 @@ module Imperative : sig
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 
     val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
+  end
+
+  module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+    val snoc : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val head : string -> Elem.t Lwt.t
+    val pop : string -> Elem.t Lwt.t
+  end
+
+  module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
+    val size : string -> int Lwt.t
+
+    val cons : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val snoc : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val head : string -> Elem.t Lwt.t
+    val last : string -> Elem.t Lwt.t
+
+    val front : string -> Elem.t  Lwt.t
+    val rear : string -> Elem.t Lwt.t
+
+    val delete : string -> int -> unit Lwt.t
+    val insert : string -> ?key:string -> Elem.t -> int -> unit Lwt.t
+    val lookup : string -> int -> Elem.t Lwt.t
+
+    val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+    val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+  end
+
+  module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
+    val size : string -> int Lwt.t
+
+    val head : string -> Elem.t Lwt.t
+    val last : string -> Elem.t Lwt.t
+
+    val front : string -> Elem.t Lwt.t
+    val rear : string -> Elem.t Lwt.t
+
+    val delete : string -> Measure.Monoid.t -> unit Lwt.t
+    val insert : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
+
+    val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+    val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   end
 
   module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
