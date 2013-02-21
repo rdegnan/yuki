@@ -47,8 +47,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     lwt { value } = get key in
     return value
 
-  let put_elem x =
-    lwt key = put x [] in
+  let put_elem ?key x =
+    lwt key = put ?key x [] in
     return { key; value = x; links = [] }
 
   (*---------------------------------*)
@@ -243,8 +243,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (measure a.value) (Monoid.of_string v)), cons_digit a pr, m, sf))
 
-  let cons a t =
-    lwt a' = put_elem a in
+  let cons ?key a t =
+    lwt a' = put_elem ?key a in
     cons_tree a' t
 
   let rec snoc_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node -> 'a node fg -> 'a node fg Lwt.t = fun reader writer a -> function
@@ -272,8 +272,8 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure a.value)), pr, m, snoc_digit a sf))
 
-  let snoc a t =
-    lwt a' = put_elem a in
+  let snoc ?key a t =
+    lwt a' = put_elem ?key a in
     snoc_tree a' t
 
   (*---------------------------------*)
@@ -788,9 +788,9 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       else
         return (t, `Nil)
 
-  let insert x p t =
+  let insert ?key x p t =
     lwt (l, r) = split p t in
-    lwt r' = cons x r in
+    lwt r' = cons ?key x r in
     append l r'
 
   (*---------------------------------*)
@@ -874,110 +874,137 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*            lookup               *)
   (*---------------------------------*)
-  let lookup_digit_node : 'a. (Monoid.t -> bool) -> Monoid.t -> 'a node digit -> Monoid.t * 'a node = fun p i -> function
+  let lookup_digit_node : 'a. (Monoid.t -> int) -> Monoid.t -> 'a node digit -> Monoid.t * 'a node = fun f i -> function
     | `One (_, a) -> Monoid.zero, a
     | `Two (_, a, b) ->
       let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
-      if p i' then Monoid.zero, a else m_a, b
+      if f i' <= 0 then Monoid.zero, a else m_a, b
     | `Three (_, a, b, c) ->
       let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
-      if p i' then Monoid.zero, a else
+      if f i' <= 0 then Monoid.zero, a else
         let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
-        if p i'' then m_a, b else Monoid.combine m_a m_b, c
+        if f i'' <= 0 then m_a, b else Monoid.combine m_a m_b, c
     | `Four (_, a, b, c, d) ->
       let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
-      if p i' then Monoid.zero, a else
+      if f i' <= 0 then Monoid.zero, a else
         let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
-        if p i'' then m_a, b else
+        if f i'' <= 0 then m_a, b else
           let m_c = measure_node c in
           let i''' = Monoid.combine i'' m_c in
-          if p i''' then Monoid.combine m_a m_b, c else Monoid.combine (Monoid.combine m_a m_b) m_c, d
+          if f i''' <= 0 then Monoid.combine m_a m_b, c else Monoid.combine (Monoid.combine m_a m_b) m_c, d
 
-  let lookup_digit p i = function
-    | `One (_, a) -> get_elem a
+  let lookup_digit f i = function
+    | `One (_, a) ->
+      lwt a' = get_elem a in
+      let i' = Monoid.combine i (measure a') in
+      if f i' = 0 then return a' else
+        raise_lwt Not_found
     | `Two (_, a, b) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return a' else get_elem b
+      if f i' = 0 then return a' else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if f i'' = 0 then return b' else
+          raise_lwt Not_found
     | `Three (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return a' else
+      if f i' = 0 then return a' else
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
-        if p i'' then return b' else get_elem c
+        if f i'' = 0 then return b' else
+          lwt c' = get_elem c in
+          let i''' = Monoid.combine i'' (measure c') in
+          if f i''' = 0 then return c' else
+            raise_lwt Not_found
     | `Four (_, a, b, c, d) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return a' else
+      if f i' = 0 then return a' else
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
-        if p i'' then return b' else
+        if f i'' = 0 then return b' else
           lwt c' = get_elem c in
           let i''' = Monoid.combine i'' (measure c') in
-          if p i''' then return c' else get_elem d
+          if f i''' = 0 then return c' else
+            lwt d' = get_elem d in
+            let i'''' = Monoid.combine i''' (measure d') in
+            if f i'''' = 0 then return d' else
+              raise_lwt Not_found
 
-  let lookup_node_node : 'a. (Monoid.t -> bool) -> Monoid.t -> 'a node node -> Monoid.t * 'a node = fun p i -> function
+  let lookup_node_node f i = function
     | `Node2 (_, a, b) ->
       let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
-      if p i' then Monoid.zero, a else m_a, b
+      if f i' <= 0 then Monoid.zero, a else m_a, b
     | `Node3 (_, a, b, c) ->
       let m_a = measure_node a in
       let i' = Monoid.combine i m_a in
-      if p i' then Monoid.zero, a else
+      if f i' <= 0 then Monoid.zero, a else
         let m_b = measure_node b in
         let i'' = Monoid.combine i' m_b in
-        if p i'' then m_a, b else Monoid.combine m_a m_b, c
+        if f i'' <= 0 then m_a, b else Monoid.combine m_a m_b, c
 
-  let lookup_node p i = function
+  let lookup_node f i = function
     | `Node2 (_, a, b) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return a' else get_elem b
+      if f i' = 0 then return a' else
+        lwt b' = get_elem b in
+        let i'' = Monoid.combine i' (measure b') in
+        if f i'' = 0 then return b' else
+          raise_lwt Not_found
     | `Node3 (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return a' else
+      if f i' = 0 then return a' else
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
-        if p i'' then return b' else get_elem c
+        if f i'' = 0 then return b' else
+          lwt c' = get_elem c in
+          let i''' = Monoid.combine i'' (measure c') in
+          if f i''' = 0 then return c' else
+            raise_lwt Not_found
 
-  let rec lookup_aux : 'a. 'a node Json.reader -> (Monoid.t -> bool) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) Lwt.t = fun reader p i -> function
+  let rec lookup_aux : 'a. 'a node Json.reader -> (Monoid.t -> int) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) Lwt.t = fun reader f i -> function
     | `Nil -> raise_lwt Empty
     | `Single x -> return (Monoid.zero, x)
     | `Deep (_, pr, m, sf) ->
       let m_pr = measure_digit pr in
       let i' = Monoid.combine i m_pr in
-      if p i' then return (lookup_digit_node p i pr) else
+      if f i' <= 0 then return (lookup_digit_node f i pr) else
         let reader' = read_node reader in
         lwt m' = get_fg reader' m in
         let m_m = measure_t_node m' in
         let i'' = Monoid.combine i' m_m in
-        if p i'' then
-          lwt v_left, node = lookup_aux reader' p i' m' in
-          let v, x = lookup_node_node p (Monoid.combine i' v_left) node in
+        if f i'' <= 0 then
+          lwt v_left, node = lookup_aux reader' f i' m' in
+          let v, x = lookup_node_node f (Monoid.combine i' v_left) node in
           return (Monoid.combine (Monoid.combine m_pr v_left) v, x)
         else
-          let v, x = lookup_digit_node p i'' sf in
+          let v, x = lookup_digit_node f i'' sf in
           return (Monoid.combine (Monoid.combine m_pr m_m) v, x)
 
-  let lookup p = function
+  let lookup f = function
     | `Nil -> raise_lwt Empty
-    | `Single x -> get_elem x
+    | `Single x ->
+      lwt x' = get_elem x in
+      if f (measure x') = 0 then return x' else
+        raise_lwt Not_found
     | `Deep (_, pr, m, sf) ->
       let i' = measure_digit pr in
-      if p i' then lookup_digit p Monoid.zero pr else
+      if f i' <= 0 then lookup_digit f Monoid.zero pr else
         lwt m' = get_fg reader m in
         let i'' = Monoid.combine i' (measure_t_node m') in
-        if p i'' then
-          lwt v_left, node = lookup_aux reader p i' m' in
-          lookup_node p (Monoid.combine i' v_left) node
+        if f i'' <= 0 then
+          lwt v_left, node = lookup_aux reader f i' m' in
+          lookup_node f (Monoid.combine i' v_left) node
         else
-          lookup_digit p i'' sf
+          lookup_digit f i'' sf
 end

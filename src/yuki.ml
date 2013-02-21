@@ -59,8 +59,8 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
 
   let init () = Client.put Impl.empty []
 
-  let cons head x = Client.write head (Impl.cons x)
-  let snoc head x = Client.write head (Impl.snoc x)
+  let cons head ?key x = Client.write head (Impl.cons ?key x)
+  let snoc head ?key x = Client.write head (Impl.snoc ?key x)
   let head head = Client.read head Impl.head
   let last head = Client.read head Impl.last
 
@@ -89,8 +89,8 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let size head = Client.read head Impl.measure_t
 
   let delete head i = Client.write head (Impl.delete (compare (i + 1)))
-  let insert head x i = Client.write head (Impl.insert x ((<=) i))
-  let lookup head i = Client.read head (Impl.lookup ((<=) i))
+  let insert head ?key x i = Client.write head (Impl.insert ?key x ((<=) i))
+  let lookup head i = Client.read head (Impl.lookup (compare (i + 1)))
 end
 
 module Product(M1:Yuki_make.Measure)(M2:Yuki_make.Measure with type t = M1.t) = struct
@@ -111,8 +111,8 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   let size head = Client.read head (fun x -> Impl.measure_t x >|= snd)
 
   let delete head i = Client.write head (Impl.delete (fun (m, _) -> compare i m))
-  let insert head x = Client.write head (Impl.insert x (fun (m, _) -> Measure.measure x <= m))
-  let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> i <= m))
+  let insert head ?key x = Client.write head (Impl.insert ?key x (fun (m, _) -> Measure.measure x <= m))
+  let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> compare i m))
 end
 
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
