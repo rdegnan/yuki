@@ -32,8 +32,8 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
   val size : string -> int Lwt.t
 
-  val cons : string -> ?key:string -> Elem.t -> string Lwt.t
-  val snoc : string -> ?key:string -> Elem.t -> string Lwt.t
+  val cons : string -> key:string -> Elem.t -> string Lwt.t
+  val snoc : string -> key:string -> Elem.t -> string Lwt.t
   val head : string -> Elem.t Lwt.t
   val last : string -> Elem.t Lwt.t
 
@@ -41,7 +41,7 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val rear : string -> (Elem.t * string) Lwt.t
 
   val delete : string -> int -> string Lwt.t
-  val insert : string -> ?key:string -> Elem.t -> int -> string Lwt.t
+  val insert : string -> key:string -> Elem.t -> int -> string Lwt.t
   val lookup : string -> int -> Elem.t Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -59,7 +59,7 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   val rear : string -> (Elem.t * string) Lwt.t
 
   val delete : string -> Measure.Monoid.t -> string Lwt.t
-  val insert : string -> ?key:string -> Elem.t -> string Lwt.t
+  val insert : string -> key:string -> Elem.t -> string Lwt.t
   val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -106,8 +106,8 @@ module Imperative : sig
   module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
     val size : string -> int Lwt.t
 
-    val cons : string -> ?key:string -> Elem.t -> unit Lwt.t
-    val snoc : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val cons : string -> key:string -> Elem.t -> unit Lwt.t
+    val snoc : string -> key:string -> Elem.t -> unit Lwt.t
     val head : string -> Elem.t Lwt.t
     val last : string -> Elem.t Lwt.t
 
@@ -115,7 +115,7 @@ module Imperative : sig
     val rear : string -> Elem.t Lwt.t
 
     val delete : string -> int -> unit Lwt.t
-    val insert : string -> ?key:string -> Elem.t -> int -> unit Lwt.t
+    val insert : string -> key:string -> Elem.t -> int -> unit Lwt.t
     val lookup : string -> int -> Elem.t Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -132,7 +132,7 @@ module Imperative : sig
     val rear : string -> Elem.t Lwt.t
 
     val delete : string -> Measure.Monoid.t -> unit Lwt.t
-    val insert : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val insert : string -> key:string -> Elem.t -> unit Lwt.t
     val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t

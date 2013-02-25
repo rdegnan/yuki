@@ -59,8 +59,8 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
 
   let init () = Client.put Impl.empty []
 
-  let cons head ?key x = Client.write head (Impl.cons ?key x)
-  let snoc head ?key x = Client.write head (Impl.snoc ?key x)
+  let cons head ~key value = Client.write head Impl.(cons { Client.value; key; links = [] })
+  let snoc head ~key value = Client.write head Impl.(snoc { Client.value; key; links = [] })
   let head head = Client.read head Impl.head
   let last head = Client.read head Impl.last
 
@@ -89,7 +89,7 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let size head = Client.read head Impl.measure_t
 
   let delete head i = Client.write head (Impl.delete (compare (i + 1)))
-  let insert head ?key x i = Client.write head (Impl.insert ?key x ((<=) i))
+  let insert head ~key value i = Client.write head Impl.(insert { Client.value; key; links = [] } ((<=) i))
   let lookup head i = Client.read head (Impl.lookup (compare (i + 1)))
 end
 
@@ -111,7 +111,7 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   let size head = Client.read head (fun x -> Impl.measure_t x >|= snd)
 
   let delete head i = Client.write head (Impl.delete (fun (m, _) -> compare i m))
-  let insert head ?key x = Client.write head (Impl.insert ?key x (fun (m, _) -> Measure.measure x <= m))
+  let insert head ~key value = Client.write head Impl.(insert { Client.value; key; links = [] } (fun (m, _) -> Measure.measure value <= m))
   let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> compare i m))
 end
 
@@ -178,8 +178,8 @@ module Imperative = struct
       let bucket = Elem.bucket
     end)
 
-    let cons head ?key x = Client.write_default head Impl.empty (Impl.cons ?key x)
-    let snoc head ?key x = Client.write_default head Impl.empty (Impl.snoc ?key x)
+    let cons head ~key value = Client.write_default head Impl.empty Impl.(cons { Client.value; key; links = [] })
+    let snoc head ~key value = Client.write_default head Impl.empty Impl.(snoc { Client.value; key; links = [] })
     let head head = Client.read_default head Impl.empty Impl.head
     let last head = Client.read_default head Impl.empty Impl.last
 
@@ -196,7 +196,7 @@ module Imperative = struct
     let size head = Client.read_default head Impl.empty Impl.measure_t
 
     let delete head i = Client.write_default head Impl.empty (Impl.delete (compare (i + 1)))
-    let insert head ?key x i = Client.write_default head Impl.empty (Impl.insert ?key x ((<=) i))
+    let insert head ~key value i = Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } ((<=) i))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (compare (i + 1)))
   end
 
@@ -206,7 +206,7 @@ module Imperative = struct
     let size head = Client.read_default head  Impl.empty(fun x -> Impl.measure_t x >|= snd)
 
     let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> compare i m))
-    let insert head ?key x = Client.write_default head Impl.empty (Impl.insert ?key x (fun (m, _) -> Measure.measure x <= m))
+    let insert head ~key value = Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (fun (m, _) -> Measure.measure value <= m))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> compare i m))
   end
 

@@ -37,10 +37,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
             | None -> raise_lwt Not_found
         )
     )
-  let put_fg writer = function
+  let put_fg ?key writer = function
     | `Nil -> return None
     | m ->
-      lwt m' = put_fg_aux writer m in
+      lwt m' = put_fg_aux writer ?key m in
       return (Some m')
 
   let get_elem key =
@@ -218,7 +218,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Three (v, a, b, c) -> `Four (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure x.value)), a, b, c, x.key)
     | `Four _ -> assert false
 
-  let rec cons_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node -> 'a node fg -> 'a node fg Lwt.t = fun reader writer a -> function
+  let rec cons_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node -> 'a node fg -> 'a node fg Lwt.t = fun reader writer a -> function
     | `Nil ->
       return (`Single a)
     | `Single b ->
@@ -226,11 +226,11 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Deep (_, `Four (_, b, c, d, e), m, sf) ->
       let reader' = read_node reader and writer' = write_node writer in
       lwt m' = get_fg reader' m in
-      lwt m'' = cons_tree_aux reader' writer' (node3_node c d e) m' in
+      lwt m'' = cons_aux reader' writer' (node3_node c d e) m' in
       deep writer' (two_node a b) m'' sf
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (measure_node a) (Monoid.of_string v)), cons_digit_node a pr, m, sf))
-  let cons_tree a = function
+  let cons a = function
     | `Nil ->
       return (singleton a)
     | `Single b ->
@@ -238,16 +238,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       deep writer (one a) `Nil (one b')
     | `Deep (_, `Four (_, b, c, d, e), m, sf) ->
       lwt b' = get b and c' = get c and d' = get d and e' = get e and m' = get_fg reader m in
-      lwt m'' = cons_tree_aux reader writer (node3 c' d' e') m' in
+      lwt m'' = cons_aux reader writer (node3 c' d' e') m' in
       deep writer (two a b') m'' sf
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (measure a.value) (Monoid.of_string v)), cons_digit a pr, m, sf))
 
-  let cons ?key a t =
-    lwt a' = put_elem ?key a in
-    cons_tree a' t
-
-  let rec snoc_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node -> 'a node fg -> 'a node fg Lwt.t = fun reader writer a -> function
+  let rec snoc_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node -> 'a node fg -> 'a node fg Lwt.t = fun reader writer a -> function
     | `Nil ->
       return (`Single a)
     | `Single b ->
@@ -255,11 +251,11 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Deep (_, pr, m, `Four (_, b, c, d, e)) ->
       let reader' = read_node reader and writer' = write_node writer in
       lwt m' = get_fg reader' m in
-      lwt m'' = snoc_tree_aux reader' writer' (node3_node b c d) m' in
+      lwt m'' = snoc_aux reader' writer' (node3_node b c d) m' in
       deep writer' pr m'' (two_node e a)
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure_node a)), pr, m, snoc_digit_node a sf))
-  let snoc_tree a = function
+  let snoc a = function
     | `Nil ->
       return (singleton a)
     | `Single b ->
@@ -267,14 +263,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       deep writer (one b') `Nil (one a)
     | `Deep (_, pr, m, `Four (_, b, c, d, e)) ->
       lwt b' = get b and c' = get c and d' = get d and e' = get e and m' = get_fg reader m in
-      lwt m'' = snoc_tree_aux reader writer (node3 b' c' d') m' in
+      lwt m'' = snoc_aux reader writer (node3 b' c' d') m' in
       deep writer pr m'' (two e' a)
     | `Deep (v, pr, m, sf) ->
       return (`Deep (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure a.value)), pr, m, snoc_digit a sf))
-
-  let snoc ?key a t =
-    lwt a' = put_elem ?key a in
-    snoc_tree a' t
 
   (*---------------------------------*)
   (*     various conversions         *)
@@ -549,15 +541,15 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   let rec append_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> 'a node fg -> 'a node list -> 'a node fg -> 'a node fg Lwt.t = fun reader writer t1 elts t2 ->
     match t1, t2 with
     | `Nil, _ ->
-      Lwt_list.fold_right_s (fun elt acc -> cons_tree_aux reader writer elt acc) elts t2
+      Lwt_list.fold_right_s (fun elt acc -> cons_aux reader writer elt acc) elts t2
     | _, `Nil ->
-      Lwt_list.fold_left_s (fun acc elt -> snoc_tree_aux reader writer elt acc) t1 elts
+      Lwt_list.fold_left_s (fun acc elt -> snoc_aux reader writer elt acc) t1 elts
     | `Single x1, _ ->
-      lwt t = Lwt_list.fold_right_s (fun elt acc -> cons_tree_aux reader writer elt acc) elts t2 in
-      cons_tree_aux reader writer x1 t
+      lwt t = Lwt_list.fold_right_s (fun elt acc -> cons_aux reader writer elt acc) elts t2 in
+      cons_aux reader writer x1 t
     | _, `Single x2 ->
-      lwt t = Lwt_list.fold_left_s (fun acc elt -> snoc_tree_aux reader writer elt acc) t1 elts in
-      snoc_tree_aux reader writer x2 t
+      lwt t = Lwt_list.fold_left_s (fun acc elt -> snoc_aux reader writer elt acc) t1 elts in
+      snoc_aux reader writer x2 t
     | `Deep (_, pr1, m1, sf1), `Deep (_, pr2, m2, sf2) ->
       let reader' = read_node reader and writer' = write_node writer in
       lwt m1' = get_fg reader' m1 and m2' = get_fg reader' m2 in
@@ -570,10 +562,10 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | _, `Nil -> return t1
     | `Single x1, _ ->
       lwt x1' = get x1 in
-      cons_tree x1' t2
+      cons x1' t2
     | _, `Single x2 ->
       lwt x2' = get x2 in
-      snoc_tree x2' t1
+      snoc x2' t1
     | `Deep (_, pr1, m1, sf1), `Deep (_, pr2, m2, sf2) ->
       lwt m1' = get_fg reader m1 and m2' = get_fg reader m2
       and ts = nodes (to_list_digit sf1) pr2 in
@@ -783,14 +775,14 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       if p m_t then
         lwt (l, x, r) = split_tree p t in
         lwt x' = get x in
-        lwt r' = cons_tree x' r in
+        lwt r' = cons x' r in
         return (l, r')
       else
         return (t, `Nil)
 
-  let insert ?key x p t =
+  let insert x p t =
     lwt (l, r) = split p t in
-    lwt r' = cons ?key x r in
+    lwt r' = cons x r in
     append l r'
 
   (*---------------------------------*)
