@@ -637,51 +637,51 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*             split               *)
   (*---------------------------------*)
-  let split_digit_node : 'a. (Monoid.t -> bool) -> Monoid.t -> 'a node digit -> 'a node list * 'a node * 'a node list = fun p i -> function
+  let split_digit_node : 'a. (Monoid.t -> int) -> Monoid.t -> 'a node digit -> 'a node list * 'a node * 'a node list = fun f i -> function
     | `One (_, a) -> ([], a, [])
     | `Two (_, a, b) ->
       let i' = Monoid.combine i (measure_node a) in
-      if p i' then ([], a, [b]) else
+      if f i' <= 0 then ([], a, [b]) else
         ([a], b, [])
     | `Three (_, a, b, c) ->
       let i' = Monoid.combine i (measure_node a) in
-      if p i' then ([], a, [b; c]) else
+      if f i' <= 0 then ([], a, [b; c]) else
         let i'' = Monoid.combine i' (measure_node b) in
-        if p i'' then ([a], b, [c]) else
+        if f i'' <= 0 then ([a], b, [c]) else
           ([a; b], c, [])
     | `Four (_, a, b, c, d) ->
       let i' = Monoid.combine i (measure_node a) in
-      if p i' then ([], a, [b; c; d]) else
+      if f i' <= 0 then ([], a, [b; c; d]) else
         let i'' = Monoid.combine i' (measure_node b) in
-        if p i'' then ([a], b, [c; d]) else
+        if f i'' <= 0 then ([a], b, [c; d]) else
           let i''' = Monoid.combine i'' (measure_node c) in
-          if p i''' then ([a; b], c, [d]) else
+          if f i''' <= 0 then ([a; b], c, [d]) else
             ([a; b; c], d, [])
-  let split_digit p i = function
+  let split_digit f i = function
     | `One (_, a) -> return ([], a, [])
     | `Two (_, a, b) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return ([], a, [b]) else
+      if f i' <= 0 then return ([], a, [b]) else
         return ([a], b, [])
     | `Three (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return ([], a, [b; c]) else
+      if f i' <= 0 then return ([], a, [b; c]) else
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
-        if p i'' then return ([a], b, [c]) else
+        if f i'' <= 0 then return ([a], b, [c]) else
           return ([a; b], c, [])
     | `Four (_, a, b, c, d) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
-      if p i' then return ([], a, [b; c; d]) else
+      if f i' <= 0 then return ([], a, [b; c; d]) else
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
-        if p i'' then return ([a], b, [c; d]) else
+        if f i'' <= 0 then return ([a], b, [c; d]) else
           lwt c' = get_elem c in
           let i''' = Monoid.combine i'' (measure c') in
-          if p i''' then return ([a; b], c, [d]) else
+          if f i''' <= 0 then return ([a; b], c, [d]) else
             return ([a; b; c], d, [])
 
   let deep_left_node : 'a. 'a node node Json.reader -> 'a node node Json.writer -> 'a node list -> 'a node node fg -> 'a node digit -> 'a node fg Lwt.t = fun reader writer pr m sf ->
@@ -724,64 +724,64 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt sf' = to_digit_list sf in
       deep writer pr m sf'
 
-  let rec split_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> (Monoid.t -> bool) -> Monoid.t -> 'a node fg -> ('a node fg * 'a node * 'a node fg) Lwt.t = fun reader writer p i -> function
+  let rec split_tree_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> (Monoid.t -> int) -> Monoid.t -> 'a node fg -> ('a node fg * 'a node * 'a node fg) Lwt.t = fun reader writer f i -> function
     | `Nil -> raise_lwt Empty
     | `Single x -> return (`Nil, x, `Nil)
     | `Deep (_, pr, m, sf) ->
       let vpr = Monoid.combine i (measure_digit pr) in
       let reader' = read_node reader and writer' = write_node writer in
       lwt m' = get_fg reader' m in
-      if p vpr then
-        let (l, x, r) = split_digit_node p i pr in
+      if f vpr <= 0 then
+        let (l, x, r) = split_digit_node f i pr in
         lwt r' = deep_left_node reader' writer' r m' sf in
         return (to_tree_list_node l, x, r')
       else
         let vm = Monoid.combine vpr (measure_t_node m') in
-        if p vm then
-          lwt (ml, xs, mr) = split_tree_aux reader' writer' p vpr m' in
-          let (l, x, r) = split_digit_node p (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
+        if f vm <= 0 then
+          lwt (ml, xs, mr) = split_tree_aux reader' writer' f vpr m' in
+          let (l, x, r) = split_digit_node f (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
           lwt l' = deep_right_node reader' writer' pr ml l and r' = deep_left_node reader' writer' r mr sf in
           return (l', x, r')
         else
-          let (l, x, r) = split_digit_node p vm sf in
+          let (l, x, r) = split_digit_node f vm sf in
           lwt l' = deep_right_node reader' writer' pr m' l in
           return (l', x, to_tree_list_node r)
-  let split_tree p = function
+  let split_tree f = function
     | `Nil -> raise_lwt Empty
     | `Single x -> return (`Nil, x, `Nil)
     | `Deep (_, pr, m, sf) ->
       let vpr = measure_digit pr in
       lwt m' = get_fg reader m in
-      if p vpr then
-        lwt (l, x, r) = split_digit p Monoid.zero pr in
+      if f vpr <= 0 then
+        lwt (l, x, r) = split_digit f Monoid.zero pr in
         lwt l' = to_tree_list l and r' = deep_left r m' sf in
         return (l', x, r')
       else
         let vm = Monoid.combine vpr (measure_t_node m') in
-        if p vm then
-          lwt (ml, xs, mr) = split_tree_aux reader writer p vpr m' in
-          lwt (l, x, r) = split_digit p (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
+        if f vm <= 0 then
+          lwt (ml, xs, mr) = split_tree_aux reader writer f vpr m' in
+          lwt (l, x, r) = split_digit f (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
           lwt l' = deep_right pr ml l and r' = deep_left r mr sf in
           return (l', x, r')
         else
-          lwt (l, x, r) = split_digit p vm sf in
+          lwt (l, x, r) = split_digit f vm sf in
           lwt l' = deep_right pr m' l and r' = to_tree_list r in
           return (l', x, r')
 
-  let split p = function
+  let split f = function
     | `Nil -> return (`Nil, `Nil)
     | t ->
       lwt m_t = measure_t t in
-      if p m_t then
-        lwt (l, x, r) = split_tree p t in
+      if f m_t <= 0 then
+        lwt (l, x, r) = split_tree f t in
         lwt x' = get x in
         lwt r' = cons x' r in
         return (l, r')
       else
         return (t, `Nil)
 
-  let insert x p t =
-    lwt (l, r) = split p t in
+  let insert x f t =
+    lwt (l, r) = split f t in
     lwt r' = cons x r in
     append l r'
 
@@ -844,7 +844,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       else
         let vm = Monoid.combine vpr (measure_t_node m') in
         if f vm <= 0 then
-          lwt (ml, xs, mr) = split_tree_aux reader writer (fun x -> f x <= 0) vpr m' in
+          lwt (ml, xs, mr) = split_tree_aux reader writer f vpr m' in
           lwt (l, x, r) = find_digit f (Monoid.combine vpr (measure_t_node ml)) (to_digit_node xs) in
           lwt l' = deep_right pr ml l and r' = deep_left r mr sf in
           return (l', x, r')

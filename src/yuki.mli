@@ -48,7 +48,7 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 end
 
-module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
+module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.OrderedMeasure with type t = Elem.t) : sig
   val init : unit -> string Lwt.t
   val size : string -> int Lwt.t
 
@@ -122,7 +122,7 @@ module Imperative : sig
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   end
 
-  module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) : sig
+  module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.OrderedMeasure with type t = Elem.t) : sig
     val size : string -> int Lwt.t
 
     val head : string -> Elem.t Lwt.t

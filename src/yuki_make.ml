@@ -32,3 +32,8 @@ module type Measure = sig
   module Monoid : Monoid
   val measure : t -> Monoid.t
 end
+
+module type OrderedMeasure = sig
+  include Measure
+  val compare : Monoid.t -> Monoid.t -> int
+end
