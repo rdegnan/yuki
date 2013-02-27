@@ -17,7 +17,7 @@ module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 
-  val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
+  val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
 end
 
 module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
@@ -94,7 +94,7 @@ module Imperative : sig
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 
-    val map : string -> (Elem.t -> 'a) -> 'a list Lwt.t
+    val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
   end
 
   module Queue(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig

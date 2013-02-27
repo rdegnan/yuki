@@ -165,16 +165,16 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
   let rec map_tree f = function
     | { value = x; links = [] } ->
-        return [ f x ]
+        lwt x' = f x in
+        return [x']
     | { value = x; links = [t1; t2] } ->
-        lwt l = get t1 >>= map_tree f
-        and r = get t2 >>= map_tree f
-        in
-        return (f x :: l @ r)
+        lwt x' = f x
+        and l = get t1 >>= map_tree f
+        and r = get t2 >>= map_tree f in
+        return (x' :: l @ r)
     | _ -> assert false
 
   let map f t =
     lwt res = Lwt_list.map_p (fun (w,t) -> get t >>= map_tree f) t in
     return (List.flatten res)
-
 end
