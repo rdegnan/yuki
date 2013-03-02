@@ -69,6 +69,9 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
+
+  let map head f = Client.read head (Impl.map f)
+  let put ?key x = Impl.Client.put ?key x []
 end
 
 module Size(Elem:Yuki_make.Elem) = struct
@@ -91,6 +94,13 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
   let delete head i = Client.write head (Impl.delete (compare (i + 1)))
   let insert head ~key value i = Client.write head Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
   let lookup head i = Client.read head (Impl.lookup (compare (i + 1)))
+
+  let page head i j = Client.read head (Impl.page (fun m ->
+    match compare (i + 1) m with
+    | n when n > 0 -> n
+    | _ -> match compare (j + 1) m with
+      | n when n < 0 -> n
+      | _ -> 0))
 end
 
 module Product(M1:Yuki_make.Measure)(M2:Yuki_make.Measure with type t = M1.t) = struct
@@ -110,11 +120,18 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
 
   let size head = Client.read head (fun x -> Impl.measure_t x >|= snd)
 
-  let delete head i = Client.write head (Impl.delete (fun (m, _) -> compare i m))
+  let delete head i = Client.write head (Impl.delete (fun (m, _) -> Measure.compare i m))
   let insert head ~key value =
     let m = Measure.measure value in
     Client.write head Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
-  let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> compare i m))
+  let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> Measure.compare i m))
+
+  let page head i j = Client.read head (Impl.page (fun (m, _) ->
+    match Measure.compare i m with
+    | n when n > 0 -> n
+    | _ -> match Measure.compare j m with
+      | n when n < 0 -> n
+      | _ -> 0))
 end
 
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct
@@ -190,6 +207,9 @@ module Imperative = struct
 
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
+
+    let map head f = Client.read_default head Impl.empty (Impl.map f)
+    let put ?key x = Impl.Client.put ?key x []
   end
 
   module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
@@ -200,6 +220,13 @@ module Imperative = struct
     let delete head i = Client.write_default head Impl.empty (Impl.delete (compare (i + 1)))
     let insert head ~key value i = Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (compare (i + 1)))
+
+    let page head i j = Client.read_default head Impl.empty (Impl.page (fun m ->
+      match compare (i + 1) m with
+      | n when n > 0 -> n
+      | _ -> match compare (j + 1) m with
+        | n when n < 0 -> n
+        | _ -> 0))
   end
 
   module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.OrderedMeasure with type t = Elem.t) = struct
@@ -207,11 +234,18 @@ module Imperative = struct
 
     let size head = Client.read_default head  Impl.empty(fun x -> Impl.measure_t x >|= snd)
 
-    let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> compare i m))
+    let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> Measure.compare i m))
     let insert head ~key value =
       let m = Measure.measure value in
       Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
-    let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> compare i m))
+    let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> Measure.compare i m))
+
+    let page head i j = Client.read_default head Impl.empty (Impl.page (fun (m, _) ->
+      match Measure.compare i m with
+      | n when n > 0 -> n
+      | _ -> match Measure.compare j m with
+        | n when n < 0 -> n
+        | _ -> 0))
   end
 
   module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) = struct

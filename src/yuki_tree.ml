@@ -54,7 +54,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*              fold               *)
   (*---------------------------------*)
-  let fold_left_node : 'acc 'a. ('acc -> 'a -> 'acc Lwt.t) -> 'acc -> 'a node -> 'acc Lwt.t = fun f acc -> function
+  let fold_left_node f acc = function
     | `Node2 (_, a, b) ->
       lwt acc = f acc a in
       f acc b
@@ -62,7 +62,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt acc = f acc a in
       lwt acc = f acc b in
       f acc c
-  let fold_right_node : 'acc 'a. ('a -> 'acc -> 'acc Lwt.t) -> 'acc -> 'a node -> 'acc Lwt.t = fun f acc -> function
+  let fold_right_node f acc = function
     | `Node2 (_, a, b) ->
       lwt acc = f b acc in
       f a acc
@@ -71,7 +71,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt acc = f b acc in
       f a acc
 
-  let fold_left_digit : 'acc 'a. ('acc -> 'a -> 'acc Lwt.t) -> 'acc -> 'a digit -> 'acc Lwt.t = fun f acc -> function
+  let fold_left_digit f acc = function
     | `One (_, a) -> f acc a
     | `Two (_, a, b) ->
       lwt acc = f acc a in
@@ -85,7 +85,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt acc = f acc b in
       lwt acc = f acc c in
       f acc d
-  let fold_right_digit : 'acc 'a. ('a -> 'acc -> 'acc Lwt.t) -> 'acc -> 'a digit -> 'acc Lwt.t = fun f acc -> function
+  let fold_right_digit f acc = function
     | `One (_, a) -> f a acc
     | `Two (_, a, b) ->
       lwt acc = f b acc in
@@ -131,19 +131,59 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     )
 
   (*---------------------------------*)
+  (*              map                *)
+  (*---------------------------------*)
+  let map_node f = function
+    | `Node2 (_, a, b) ->
+      lwt a' = f a and b' = f b in
+      return (a' @ b')
+    | `Node3 (_, a, b, c) ->
+      lwt a' = f a and b' = f b and c' = f c in
+      return (a' @ b' @ c')
+
+  let map_digit f = function
+    | `One (_, a) ->
+      lwt a' = f a in
+      return a'
+    | `Two (_, a, b) ->
+      lwt a' = f a and b' = f b in
+      return (a' @ b')
+    | `Three (_, a, b, c) ->
+      lwt a' = f a and b' = f b and c' = f c in
+      return (a' @ b' @ c')
+    | `Four (_, a, b, c, d) ->
+      lwt a' = f a and b' = f b and c' = f c and d' = f d in
+      return (a' @ b' @ c' @ d')
+
+  let rec map_aux : 'a. 'a Json.reader -> ('a -> 'b list Lwt.t) -> 'a fg -> 'b list Lwt.t = fun reader f -> function
+    | `Nil -> return []
+    | `Single x -> f x
+    | `Deep (_, pr, m, sf) ->
+      let reader' = read_node reader in
+      lwt pr' = map_digit f pr
+      and m' = get_fg reader' m >>= map_aux reader' (map_node f)
+      and sf' = map_digit f sf in
+      return (pr' @ m' @ sf')
+  let map f =
+    map_aux read_string (fun x ->
+      lwt x' = get_elem x >>= f in
+      return [x']
+    )
+
+  (*---------------------------------*)
   (*     measurement functions       *)
   (*---------------------------------*)
-  let measure_node : 'a. 'a node -> Monoid.t = function
+  let measure_node = function
     | `Node2 (v, _, _)
     | `Node3 (v, _, _, _) -> Monoid.of_string v
 
-  let measure_digit : 'a. 'a digit -> Monoid.t = function
+  let measure_digit = function
     | `One (v, _)
     | `Two (v, _, _)
     | `Three (v, _, _, _)
     | `Four (v, _, _, _, _) -> Monoid.of_string v
 
-  let measure_t_node : 'a. 'a node fg -> Monoid.t = function
+  let measure_t_node = function
     | `Nil -> Monoid.zero
     | `Single x -> measure_node x
     | `Deep (v, _, _, _) -> Monoid.of_string v
@@ -159,36 +199,36 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   let singleton a = `Single a.key
 
-  let node2_node : 'a. 'a node -> 'a node -> 'a node node = fun a b ->
+  let node2_node a b =
     `Node2 (Monoid.to_string (Monoid.combine (measure_node a) (measure_node b)), a, b)
   let node2 a b =
     `Node2 (Monoid.to_string (Monoid.combine (measure a.value) (measure b.value)), a.key, b.key)
 
-  let node3_node : 'a. 'a node -> 'a node -> 'a node -> 'a node node = fun a b c ->
+  let node3_node a b c =
     `Node3 (Monoid.to_string (Monoid.combine (measure_node a) (Monoid.combine (measure_node b) (measure_node c))), a, b, c)
   let node3 a b c =
     `Node3 (Monoid.to_string (Monoid.combine (measure a.value) (Monoid.combine (measure b.value) (measure c.value))), a.key, b.key, c.key)
 
-  let deep : 'a. 'a node Json.writer -> 'a digit -> 'a node fg -> 'a digit -> 'a fg Lwt.t = fun writer pr m sf ->
+  let deep writer pr m sf =
     lwt m' = put_fg writer m in
     return (`Deep (Monoid.to_string (Monoid.combine (Monoid.combine (measure_digit pr) (measure_t_node m)) (measure_digit sf)), pr, m', sf))
 
-  let one_node : 'a. 'a node -> 'a node digit = fun a ->
+  let one_node a =
     `One (Monoid.to_string (measure_node a), a)
   let one a =
     `One (Monoid.to_string (measure a.value), a.key)
 
-  let two_node : 'a. 'a node -> 'a node -> 'a node digit = fun a b ->
+  let two_node a b =
     `Two (Monoid.to_string (Monoid.combine (measure_node a) (measure_node b)), a, b)
   let two a b =
     `Two (Monoid.to_string (Monoid.combine (measure a.value) (measure b.value)), a.key, b.key)
 
-  let three_node : 'a. 'a node -> 'a node -> 'a node -> 'a node digit = fun a b c ->
+  let three_node a b c =
     `Three (Monoid.to_string (Monoid.combine (Monoid.combine (measure_node a) (measure_node b)) (measure_node c)), a, b, c)
   let three a b c =
     `Three (Monoid.to_string (Monoid.combine (Monoid.combine (measure a.value) (measure b.value)) (measure c.value)), a.key, b.key, c.key)
 
-  let four_node : 'a. 'a node -> 'a node -> 'a node -> 'a node -> 'a node digit = fun a b c d ->
+  let four_node  a b c d =
     `Four (Monoid.to_string (Monoid.combine (Monoid.combine (measure_node a) (measure_node b)) (Monoid.combine (measure_node c) (measure_node d))), a, b, c, d)
   let four a b c d =
     `Four (Monoid.to_string (Monoid.combine (Monoid.combine (measure a.value) (measure b.value)) (Monoid.combine (measure c.value) (measure d.value))), a.key, b.key, c.key, d.key)
@@ -196,7 +236,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*          cons / snoc            *)
   (*---------------------------------*)
-  let cons_digit_node : 'a. 'a node -> 'a node digit -> 'a node digit = fun x -> function
+  let cons_digit_node x = function
     | `One (v, a) -> `Two (Monoid.to_string (Monoid.combine (measure_node x) (Monoid.of_string v)), x, a)
     | `Two (v, a, b) -> `Three (Monoid.to_string (Monoid.combine (measure_node x) (Monoid.of_string v)), x, a, b)
     | `Three (v, a, b, c) -> `Four (Monoid.to_string (Monoid.combine (measure_node x) (Monoid.of_string v)), x, a, b, c)
@@ -207,7 +247,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Three (v, a, b, c) -> `Four (Monoid.to_string (Monoid.combine (measure x.value) (Monoid.of_string v)), x.key, a, b, c)
     | `Four _ -> assert false
 
-  let snoc_digit_node : 'a. 'a node -> 'a node digit -> 'a node digit = fun x -> function
+  let snoc_digit_node x = function
     | `One (v, a) -> `Two (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure_node x)), a, x)
     | `Two (v, a, b) -> `Three (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure_node x)), a, b, x)
     | `Three (v, a, b, c) -> `Four (Monoid.to_string (Monoid.combine (Monoid.of_string v) (measure_node x)), a, b, c, x)
@@ -271,7 +311,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*     various conversions         *)
   (*---------------------------------*)
-  let to_tree_digit_node : 'a. 'a node digit -> 'a node fg = function
+  let to_tree_digit_node = function
     | `One (_, a) -> `Single a
     | `Two (v, a, b) -> `Deep (v, one_node a, None, one_node b)
     | `Three (v, a, b, c) -> `Deep (v, two_node a b, None, one_node c)
@@ -289,7 +329,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt a' = get a and b' = get b and c' = get c and d' = get d in
       return (`Deep (v, three a' b' c', None, one d'))
 
-  let to_tree_list_node : 'a. 'a node list -> 'a node fg = function
+  let to_tree_list_node = function
     | [] -> `Nil
     | [a] -> `Single a
     | [a; b] ->
@@ -319,7 +359,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       return (`Deep (Monoid.to_string (Monoid.combine m_pr m_sf), `Three (Monoid.to_string m_pr, a, b, c), None, `One (Monoid.to_string m_sf, d)))
     | _ -> assert false
 
-  let to_digit_node : 'a. 'a node -> 'a digit = function
+  let to_digit_node = function
     | `Node2 (v, a, b) -> `Two (v, a, b)
     | `Node3 (v, a, b, c) -> `Three (v, a, b, c)
   let to_digit_list = function
@@ -336,33 +376,37 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt a' = get a and b' = get b and c' = get c and d' = get d in
       return (four a' b' c' d')
     | _ -> assert false
-  let to_digit_list_node : 'a. 'a node list -> 'a node digit = function
+  let to_digit_list_node = function
     | [a] -> one_node a
     | [a; b] -> two_node a b
     | [a; b; c] -> three_node a b c
     | [a; b; c; d] -> four_node a b c d
     | _ -> assert false
 
-  let to_list_digit : 'a. 'a digit -> 'a list = function
+  let to_list_digit = function
     | `One (_, a) -> [a]
     | `Two (_, a, b) -> [a; b]
     | `Three (_, a, b, c) -> [a; b; c]
     | `Four (_, a, b, c, d) -> [a; b; c; d]
 
+  let to_list_node = function
+    | `Node2 (_, a, b) -> [a; b]
+    | `Node3 (_, a, b, c) -> [a; b; c]
+
   (*---------------------------------*)
   (*     front / rear / etc.         *)
   (*---------------------------------*)
-  let head_digit : 'a. 'a digit -> 'a = function
+  let head_digit = function
     | `One (_, a)
     | `Two (_, a, _)
     | `Three (_, a, _, _)
     | `Four (_, a, _, _, _) -> a
-  let last_digit : 'a. 'a digit -> 'a = function
+  let last_digit = function
     | `One (_, a)
     | `Two (_, _, a)
     | `Three (_, _, _, a)
     | `Four (_, _, _, _, a) -> a
-  let tail_digit_node : 'a. 'a node digit -> 'a node digit = function
+  let tail_digit_node = function
     | `One _ -> assert false
     | `Two (_, _, a) -> one_node a
     | `Three (_, _, a, b) -> two_node a b
@@ -378,7 +422,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Four (_, _, a, b, c) ->
       lwt a' = get a and b' = get b and c' = get c in
       return (three a' b' c')
-  let init_digit_node : 'a. 'a node digit -> 'a node digit = function
+  let init_digit_node = function
     | `One _ -> assert false
     | `Two (_, a, _) -> one_node a
     | `Three (_, a, b, _) -> two_node a b
@@ -575,7 +619,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*            reverse              *)
   (*---------------------------------*)
-  let reverse_digit_node : 'a. ('a node -> 'a node Lwt.t) -> 'a node digit -> 'a node digit Lwt.t = fun rev_a -> function
+  let reverse_digit_node rev_a = function
     | `One (_, a) ->
       lwt a' = rev_a a in
       return (one_node a')
@@ -599,7 +643,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Four (_, a, b, c, d) ->
       lwt a' = get a and b' = get b and c' = get c and d' = get d in
       return (four d' c' b' a')
-  let reverse_node_node : 'a. ('a node -> 'a node Lwt.t) -> 'a node node -> 'a node node Lwt.t = fun rev_a -> function
+  let reverse_node_node rev_a = function
     | `Node2 (_, a, b) ->
       lwt a' = rev_a a and b' = rev_a b in
       return (node2_node b' a')
@@ -637,7 +681,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*             split               *)
   (*---------------------------------*)
-  let split_digit_node : 'a. (Monoid.t -> int) -> Monoid.t -> 'a node digit -> 'a node list * 'a node * 'a node list = fun f i -> function
+  let split_digit_node f i = function
     | `One (_, a) -> ([], a, [])
     | `Two (_, a, b) ->
       let i' = Monoid.combine i (measure_node a) in
@@ -684,7 +728,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           if f i''' <= 0 then return ([a; b], c, [d]) else
             return ([a; b; c], d, [])
 
-  let deep_left_node : 'a. 'a node node Json.reader -> 'a node node Json.writer -> 'a node list -> 'a node node fg -> 'a node digit -> 'a node fg Lwt.t = fun reader writer pr m sf ->
+  let deep_left_node reader writer pr m sf =
     match pr with
     | [] -> (
       match_lwt view_left_aux reader writer m with
@@ -704,7 +748,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt pr' = to_digit_list pr in
       deep writer pr' m sf
 
-  let deep_right_node : 'a. 'a node node Json.reader -> 'a node node Json.writer -> 'a node digit -> 'a node node fg -> 'a node list -> 'a node fg Lwt.t = fun reader writer pr m sf ->
+  let deep_right_node reader writer pr m sf =
     match sf with
     | [] -> (
       match_lwt view_right_aux reader writer m with
@@ -866,7 +910,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
   (*---------------------------------*)
   (*            lookup               *)
   (*---------------------------------*)
-  let lookup_digit_node : 'a. (Monoid.t -> int) -> Monoid.t -> 'a node digit -> Monoid.t * 'a node = fun f i -> function
+  let lookup_digit_node f i = function
     | `One (_, a) -> Monoid.zero, a
     | `Two (_, a, b) ->
       let m_a = measure_node a in
@@ -990,13 +1034,127 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       if f (measure x') = 0 then return x' else
         raise_lwt Not_found
     | `Deep (_, pr, m, sf) ->
-      let i' = measure_digit pr in
-      if f i' <= 0 then lookup_digit f Monoid.zero pr else
+      let i = measure_digit pr in
+      if f i <= 0 then lookup_digit f Monoid.zero pr else
         lwt m' = get_fg reader m in
-        let i'' = Monoid.combine i' (measure_t_node m') in
-        if f i'' <= 0 then
-          lwt v_left, node = lookup_aux reader f i' m' in
-          lookup_node f (Monoid.combine i' v_left) node
+        let i' = Monoid.combine i (measure_t_node m') in
+        if f i' <= 0 then
+          lwt v_left, node = lookup_aux reader f i m' in
+          lookup_node f (Monoid.combine i v_left) node
         else
-          lookup_digit f i'' sf
+          lookup_digit f i' sf
+
+  (*---------------------------------*)
+  (*              page               *)
+  (*---------------------------------*)
+  let rec fold_prefix_node f p acc = function
+    | [] -> return ([], (acc, []))
+    | x::xs' as xs ->
+      lwt acc', x' = f acc x in
+      if p acc' then
+        lwt ys, (acc'', zs) = fold_prefix_node f p acc' xs' in
+        return ((acc, x')::ys, (acc'', zs))
+      else return ([], (acc, xs))
+
+  let rec fold_prefix f p acc = function
+    | [] -> return ([], (acc, []))
+    | x::xs' as xs ->
+      lwt acc', x' = f acc x in
+      if p acc' then
+        lwt ys, (acc'', zs) = fold_prefix f p acc' xs' in
+        return (x'::ys, (acc'', zs))
+      else return ([], (acc, xs))
+
+  let page_node_list f i lst =
+    let combine acc elt = return (Monoid.combine acc (measure_node elt), elt) in
+    lwt i', ys = fold_prefix_node combine (fun i -> f i > 0) i lst >|= snd in
+    match_lwt fold_prefix_node combine (fun i -> f i <= 0) i' ys with
+      | xs, (_, []) -> return xs
+      | xs, (i'', y::ys) -> return (xs @ [(i'', y)])
+
+  let page_node_list_list f = Lwt_list.map_p (fun (i, n) -> page_node_list f i (to_list_node n))
+
+  let page_list f i lst =
+    let combine acc elt = lwt elt' = get_elem elt in return (Monoid.combine acc (measure elt'), elt') in
+    lwt i', ys = fold_prefix combine (fun i -> f i > 0) i lst >|= snd in
+    fold_prefix combine (fun i -> f i = 0) i' ys >|= fst
+
+  let page_list_list f = Lwt_list.map_p (fun (i, n) -> page_list f i (to_list_node n))
+
+  let rec page_aux : 'a. 'a node Json.reader -> (Monoid.t -> int) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) list Lwt.t = fun reader f i -> function
+    | `Nil -> return []
+    | `Single x -> return [(i, x)]
+    | `Deep (_, pr, m, sf) ->
+      let i' = Monoid.combine i (measure_digit pr) in
+      match f i' with
+      | 0 ->
+        let reader' = read_node reader in
+        lwt m' = get_fg reader' m in
+        let i'' = Monoid.combine i' (measure_t_node m') in
+        if f i'' < 0 then
+          lwt pr' = page_node_list f i (to_list_digit pr)
+          and nodes = page_aux reader' f i' m' >>= page_node_list_list f in
+          return (pr' @ List.concat nodes)
+        else
+          lwt pr' = page_node_list f i (to_list_digit pr)
+          and nodes = page_aux reader' f i' m' >>= page_node_list_list f
+          and sf' = page_node_list f i'' (to_list_digit sf) in
+          return (pr' @ List.concat nodes @ sf')
+      | n when n < 0 -> page_node_list f i (to_list_digit pr)
+      | _ ->
+        let reader' = read_node reader in
+        lwt m' = get_fg reader' m in
+        let i'' = Monoid.combine i' (measure_t_node m') in
+        match f i'' with
+        | 0 ->
+          lwt nodes = page_aux reader' f i' m' >>= page_node_list_list f
+          and sf' = page_node_list f i'' (to_list_digit sf) in
+          return (List.concat nodes @ sf')
+        | n when n < 0 ->
+          lwt nodes = page_aux reader' f i' m' >>= page_node_list_list f in
+          return (List.concat nodes)
+        | _ ->
+          let i''' = Monoid.combine i'' (measure_digit sf) in
+          if f i''' <= 0 then
+            page_node_list f i'' (to_list_digit sf)
+          else return []
+
+  let page f = function
+    | `Nil -> return []
+    | `Single x ->
+      lwt x' = get_elem x in
+      if f (measure x') = 0 then return [x'] else
+        return []
+    | `Deep (_, pr, m, sf) ->
+      let i = measure_digit pr in
+      match f i with
+      | 0 ->
+        lwt m' = get_fg reader m in
+        let i' = Monoid.combine i (measure_t_node m') in
+        if f i' < 0 then
+          lwt pr' = page_list f Monoid.zero (to_list_digit pr)
+          and nodes = page_aux reader f i m' >>= page_list_list f in
+          return (pr' @ List.concat nodes)
+        else
+          lwt pr' = page_list f Monoid.zero (to_list_digit pr)
+          and nodes = page_aux reader f i m' >>= page_list_list f
+          and sf' = page_list f i' (to_list_digit sf) in
+          return (pr' @ List.concat nodes @ sf')
+      | n when n < 0 -> page_list f Monoid.zero (to_list_digit pr)
+      | _ ->
+        lwt m' = get_fg reader m in
+        let i' = Monoid.combine i (measure_t_node m') in
+        match f i' with
+        | 0 ->
+          lwt nodes = page_aux reader f i m' >>= page_list_list f
+          and sf' = page_list f i' (to_list_digit sf) in
+          return (List.concat nodes @ sf')
+        | n when n < 0 ->
+          lwt nodes = page_aux reader f i m' >>= page_list_list f in
+          return (List.concat nodes)
+        | _ ->
+          let i'' = Monoid.combine i' (measure_digit sf) in
+          if f i'' <= 0 then
+            page_list f i' (to_list_digit sf)
+          else return []
 end

@@ -44,8 +44,13 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val insert : string -> key:string -> Elem.t -> int -> string Lwt.t
   val lookup : string -> int -> Elem.t Lwt.t
 
+  val page : string -> int -> int -> Elem.t list Lwt.t
+
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+  val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+  val put : ?key:string -> Elem.t -> string Lwt.t
 end
 
 module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.OrderedMeasure with type t = Elem.t) : sig
@@ -62,8 +67,13 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   val insert : string -> key:string -> Elem.t -> string Lwt.t
   val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
+  val page : string -> Measure.Monoid.t -> Measure.Monoid.t -> Elem.t list Lwt.t
+
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+  val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+  val put : ?key:string -> Elem.t -> string Lwt.t
 end
 
 module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
@@ -118,8 +128,13 @@ module Imperative : sig
     val insert : string -> key:string -> Elem.t -> int -> unit Lwt.t
     val lookup : string -> int -> Elem.t Lwt.t
 
+    val page : string -> int -> int -> Elem.t list Lwt.t
+
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+    val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+    val put : ?key:string -> Elem.t -> string Lwt.t
   end
 
   module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.OrderedMeasure with type t = Elem.t) : sig
@@ -135,8 +150,13 @@ module Imperative : sig
     val insert : string -> key:string -> Elem.t -> unit Lwt.t
     val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
+    val page : string -> Measure.Monoid.t -> Measure.Monoid.t -> Elem.t list Lwt.t
+
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
+
+    val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+    val put : ?key:string -> Elem.t -> string Lwt.t
   end
 
   module Heap(Conn:Yuki_make.Conn)(Elem:Yuki_make.Ord) : sig
