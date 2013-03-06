@@ -131,6 +131,58 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     )
 
   (*---------------------------------*)
+  (*           take_while            *)
+  (*---------------------------------*)
+  let take_while_node f acc lst = function
+    | `Node2 (_, a, b) -> (match_lwt f acc lst a with
+      | Some acc, lst -> f acc lst b
+      | lst -> return lst)
+    | `Node3 (_, a, b, c) -> (match_lwt f acc lst a with
+      | Some acc, lst -> (match_lwt f acc lst b with
+        | Some acc, lst -> f acc lst c
+        | lst -> return lst)
+      | lst -> return lst)
+
+  let take_while_digit f acc lst = function
+    | `One (_, a) -> f acc lst a
+    | `Two (_, a, b) -> (match_lwt f acc lst a with
+      | Some acc, lst -> f acc lst b
+      | lst -> return lst)
+    | `Three (_, a, b, c) -> (match_lwt f acc lst a with
+      | Some acc, lst -> (match_lwt f acc lst b with
+        | Some acc, lst -> f acc lst c
+        | lst -> return lst)
+      | lst -> return lst)
+    | `Four (_, a, b, c, d) -> (match_lwt f acc lst a with
+      | Some acc, lst -> (match_lwt f acc lst b with
+        | Some acc, lst -> (match_lwt f acc lst c with
+          | Some acc, lst -> f acc lst d
+          | lst -> return lst)
+        | lst -> return lst)
+      | lst -> return lst)
+
+  let rec take_while_aux : 'acc 'a. 'a Json.reader -> ('acc -> Elem.t list -> 'a -> ('acc option * Elem.t list) Lwt.t) -> 'acc -> Elem.t list -> 'a fg -> ('acc option * Elem.t list) Lwt.t = fun reader f acc lst -> function
+    | `Nil -> return (None, lst)
+    | `Single x -> f acc lst x
+    | `Deep (_, pr, m, sf) ->
+      let reader' = read_node reader in
+      match_lwt take_while_digit f acc lst pr with
+      | Some acc, lst ->
+        lwt m' = get_fg reader' m in
+        (match_lwt take_while_aux reader' (take_while_node f) acc lst m' with
+          | Some acc, lst -> take_while_digit f acc lst sf
+          | lst -> return lst)
+      | lst -> return lst
+  let take_while f acc lst =
+    lwt (_, lst) = take_while_aux read_string (fun acc lst elt ->
+      lwt elt' = get_elem elt in
+      match_lwt f acc elt' with
+      | Some acc -> return (Some acc, elt' :: lst)
+      | None -> return (None, lst)
+    ) acc [] lst in
+    return lst
+
+  (*---------------------------------*)
   (*              map                *)
   (*---------------------------------*)
   let map_node f = function
@@ -1072,12 +1124,12 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       | xs, (_, []) -> return xs
       | xs, (i'', y::ys) -> return (xs @ [(i'', y)])
 
-  let page_node_list_list f = Lwt_list.map_p (fun (i, n) -> page_node_list f i (to_list_node n))
-
   let page_list f i lst =
     let combine acc elt = lwt elt' = get_elem elt in return (Monoid.combine acc (measure elt'), elt') in
     lwt i', ys = fold_prefix combine (fun i -> f i > 0) i lst >|= snd in
     fold_prefix combine (fun i -> f i = 0) i' ys >|= fst
+
+  let page_node_list_list f = Lwt_list.map_p (fun (i, n) -> page_node_list f i (to_list_node n))
 
   let page_list_list f = Lwt_list.map_p (fun (i, n) -> page_list f i (to_list_node n))
 

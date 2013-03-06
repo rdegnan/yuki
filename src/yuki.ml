@@ -67,6 +67,8 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
   let front head = Client.write' head Impl.front
   let rear head = Client.write' head Impl.rear
 
+  let take_while head f x = Client.read head (Impl.take_while f x)
+
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
 
@@ -126,10 +128,10 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
     Client.write head Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
   let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> Measure.compare i m))
 
-  let page head i j = Client.read head (Impl.page (fun (m, _) ->
-    match Measure.compare i m with
+  let page head compare i j = Client.read head (Impl.page (fun (m, _) ->
+    match compare i m with
     | n when n > 0 -> n
-    | _ -> match Measure.compare j m with
+    | _ -> match compare j m with
       | n when n < 0 -> n
       | _ -> 0))
 end
@@ -205,6 +207,8 @@ module Imperative = struct
     let front head = Client.write_default' head Impl.empty Impl.front
     let rear head = Client.write_default' head Impl.empty Impl.rear
 
+    let take_while head f x = Client.read_default head Impl.empty (Impl.take_while f x)
+
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
 
@@ -240,10 +244,10 @@ module Imperative = struct
       Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> Measure.compare i m))
 
-    let page head i j = Client.read_default head Impl.empty (Impl.page (fun (m, _) ->
-      match Measure.compare i m with
+    let page head compare i j = Client.read_default head Impl.empty (Impl.page (fun (m, _) ->
+      match compare i m with
       | n when n > 0 -> n
-      | _ -> match Measure.compare j m with
+      | _ -> match compare j m with
         | n when n < 0 -> n
         | _ -> 0))
   end
