@@ -45,7 +45,7 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val lookup : string -> int -> Elem.t Lwt.t
 
   val page : string -> int -> int -> Elem.t list Lwt.t
-  val take_while : string -> ('a -> Elem.t -> 'a option Lwt.t) -> 'a -> Elem.t list Lwt.t
+  val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -69,7 +69,7 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
   val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
-  val take_while : string -> ('a -> Elem.t -> 'a option Lwt.t) -> 'a -> Elem.t list Lwt.t
+  val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -131,7 +131,7 @@ module Imperative : sig
     val lookup : string -> int -> Elem.t Lwt.t
 
     val page : string -> int -> int -> Elem.t list Lwt.t
-    val take_while : string -> ('a -> Elem.t -> 'a option Lwt.t) -> 'a -> Elem.t list Lwt.t
+    val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -154,7 +154,7 @@ module Imperative : sig
     val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
     val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
-    val take_while : string -> ('a -> Elem.t -> 'a option Lwt.t) -> 'a -> Elem.t list Lwt.t
+    val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t

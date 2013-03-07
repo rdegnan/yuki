@@ -161,7 +161,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         | lst -> return lst)
       | lst -> return lst)
 
-  let rec take_while_aux : 'acc 'a. 'a Json.reader -> ('acc -> Elem.t list -> 'a -> ('acc option * Elem.t list) Lwt.t) -> 'acc -> Elem.t list -> 'a fg -> ('acc option * Elem.t list) Lwt.t = fun reader f acc lst -> function
+  let rec take_while_aux : 'acc 'a. 'a Json.reader -> ('acc -> 'b list -> 'a -> ('acc option * 'b list) Lwt.t) -> 'acc -> 'b list -> 'a fg -> ('acc option * 'b list) Lwt.t = fun reader f acc lst -> function
     | `Nil -> return (None, lst)
     | `Single x -> f acc lst x
     | `Deep (_, pr, m, sf) ->
@@ -177,7 +177,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     lwt (_, lst) = take_while_aux read_string (fun acc lst elt ->
       lwt elt' = get_elem elt in
       match_lwt f acc elt' with
-      | Some acc -> return (Some acc, elt' :: lst)
+      | Some (acc, x) -> return (Some acc, x :: lst)
       | None -> return (None, lst)
     ) acc [] lst in
     return lst
@@ -667,68 +667,6 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       and ts = nodes (to_list_digit sf1) pr2 in
       lwt m = append_aux reader writer m1' ts m2' in
       deep writer pr1 m sf2
-
-  (*---------------------------------*)
-  (*            reverse              *)
-  (*---------------------------------*)
-  let reverse_digit_node rev_a = function
-    | `One (_, a) ->
-      lwt a' = rev_a a in
-      return (one_node a')
-    | `Two (_, a, b) ->
-      lwt a' = rev_a a and b' = rev_a b in
-      return (two_node b' a')
-    | `Three (_, a, b, c) ->
-      lwt a' = rev_a a and b' = rev_a b and c' = rev_a c in
-      return (three_node c' b' a')
-    | `Four (_, a, b, c, d) ->
-      lwt a' = rev_a a and b' = rev_a b and c' = rev_a c and d' = rev_a d in
-      return (four_node d' c' b' a')
-  let reverse_digit = function
-    | `One _ as d -> return d
-    | `Two (_, a, b) ->
-      lwt a' = get a and b' = get b in
-      return (two b' a')
-    | `Three (_, a, b, c) ->
-      lwt a' = get a and b' = get b and c' = get c in
-      return (three c' b' a')
-    | `Four (_, a, b, c, d) ->
-      lwt a' = get a and b' = get b and c' = get c and d' = get d in
-      return (four d' c' b' a')
-  let reverse_node_node rev_a = function
-    | `Node2 (_, a, b) ->
-      lwt a' = rev_a a and b' = rev_a b in
-      return (node2_node b' a')
-    | `Node3 (_, a, b, c) ->
-      lwt a' = rev_a a and b' = rev_a b and c' = rev_a c in
-      return (node3_node c' b' a')
-  let reverse_node = function
-    | `Node2 (_, a, b) ->
-      lwt a' = get a and b' = get b in
-      return (node2 b' a')
-    | `Node3 (_, a, b, c) ->
-      lwt a' = get a and b' = get b and c' = get c in
-      return (node3 c' b' a')
-
-  let rec reverse_aux : 'a. 'a node Json.reader -> 'a node Json.writer -> ('a node -> 'a node Lwt.t) -> 'a node fg -> 'a node fg Lwt.t = fun reader writer reverse_a -> function
-    | `Nil -> return `Nil
-    | `Single a ->
-      lwt a' = reverse_a a in
-      return (`Single a')
-    | `Deep (_, pr, m, sf) ->
-      let reader' = read_node reader and writer' = write_node writer in
-      lwt rev_pr = reverse_digit_node reverse_a pr and rev_sf = reverse_digit_node reverse_a sf in
-      lwt m' = get_fg reader' m in
-      lwt rev_m = reverse_aux reader' writer' (reverse_node_node (reverse_a)) m' in
-      deep writer' rev_sf rev_m rev_pr
-  let reverse = function
-    | `Nil
-    | `Single _ as t -> return t
-    | `Deep (_, pr, m, sf) ->
-      lwt rev_pr = reverse_digit pr and rev_sf = reverse_digit sf in
-      lwt m' = get_fg reader m in
-      lwt rev_m = reverse_aux reader writer reverse_node m' in
-      deep writer rev_sf rev_m rev_pr
 
   (*---------------------------------*)
   (*             split               *)
