@@ -68,6 +68,8 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
   let rear head = Client.write' head Impl.rear
 
   let take_while head f x = Client.read head (Impl.take_while f x)
+  let iter head f = Client.read head (Impl.iter f)
+  let to_stream head = Client.read head Impl.to_stream
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
@@ -208,6 +210,8 @@ module Imperative = struct
     let rear head = Client.write_default' head Impl.empty Impl.rear
 
     let take_while head f x = Client.read_default head Impl.empty (Impl.take_while f x)
+    let iter head f = Client.read_default head Impl.empty (Impl.iter f)
+    let to_stream head = Client.read_default head Impl.empty Impl.to_stream
 
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)

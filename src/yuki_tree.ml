@@ -183,6 +183,40 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     return lst
 
   (*---------------------------------*)
+  (*              iter               *)
+  (*---------------------------------*)
+  let iter_node f = function
+    | `Node2 (_, a, b) -> f a >> f b
+    | `Node3 (_, a, b, c) -> f a >> f b >> f c
+
+  let iter_digit f = function
+    | `One (_, a) -> f a
+    | `Two (_, a, b) -> f a >> f b
+    | `Three (_, a, b, c) -> f a >> f b >> f c
+    | `Four (_, a, b, c, d) -> f a >> f b >> f c >> f d
+
+  let rec iter_aux : 'a. 'a Json.reader -> ('a -> unit Lwt.t) -> 'a fg -> unit Lwt.t = fun reader f -> function
+    | `Nil -> return ()
+    | `Single x -> f x
+    | `Deep (_, pr, m, sf) ->
+      let reader' = read_node reader in
+      lwt m' = get_fg reader' m in
+      iter_digit f pr >> iter_aux reader' (iter_node f) m' >> iter_digit f sf
+  let iter f ts = iter_aux read_string (fun elt -> get_elem elt >>= f) ts
+
+  (*---------------------------------*)
+  (*           to_stream             *)
+  (*---------------------------------*)
+  let to_stream ts =
+    let waiter, wakener = Lwt.task () in
+    let mvar = Lwt_mvar.create_empty () in
+    let thread = waiter >>= iter (fun elt ->
+      Lwt_mvar.put mvar (Some elt)
+    ) >> Lwt_mvar.put mvar None in
+    wakeup wakener ts;
+    return (Lwt_stream.from (fun () -> Lwt_mvar.take mvar), thread)
+
+  (*---------------------------------*)
   (*              map                *)
   (*---------------------------------*)
   let map_node f = function

@@ -47,6 +47,9 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val page : string -> int -> int -> Elem.t list Lwt.t
   val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
+  val iter : string -> (Elem.t -> unit Lwt.t) -> unit Lwt.t
+  val to_stream : string -> (Elem.t Lwt_stream.t * unit Lwt.t) Lwt.t
+
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 
@@ -70,6 +73,9 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
 
   val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
   val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
+
+  val iter : string -> (Elem.t -> unit Lwt.t) -> unit Lwt.t
+  val to_stream : string -> (Elem.t Lwt_stream.t * unit Lwt.t) Lwt.t
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
@@ -133,6 +139,9 @@ module Imperative : sig
     val page : string -> int -> int -> Elem.t list Lwt.t
     val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
 
+    val iter : string -> (Elem.t -> unit Lwt.t) -> unit Lwt.t
+    val to_stream : string -> (Elem.t Lwt_stream.t * unit Lwt.t) Lwt.t
+
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
 
@@ -155,6 +164,9 @@ module Imperative : sig
 
     val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
     val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
+
+    val iter : string -> (Elem.t -> unit Lwt.t) -> unit Lwt.t
+    val to_stream : string -> (Elem.t Lwt_stream.t * unit Lwt.t) Lwt.t
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
