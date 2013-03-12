@@ -95,8 +95,10 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct
 
   let size head = Client.read head Impl.measure_t
 
+  let insert' head ~key value i = Client.write head Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
+  let insert head ?key value i = put ?key value >>= fun key -> insert' head ~key value i
+
   let delete head i = Client.write head (Impl.delete (compare (i + 1)))
-  let insert head ~key value i = Client.write head Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
   let lookup head i = Client.read head (Impl.lookup (compare (i + 1)))
 
   let page head i j = Client.read head (Impl.page (fun m ->
@@ -124,10 +126,12 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
 
   let size head = Client.read head (fun x -> Impl.measure_t x >|= snd)
 
-  let delete head i = Client.write head (Impl.delete (fun (m, _) -> Measure.compare i m))
-  let insert head ~key value =
+  let insert' head ~key value =
     let m = Measure.measure value in
     Client.write head Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
+  let insert head ?key value = put ?key value >>= fun key -> insert' head ~key value
+
+  let delete head i = Client.write head (Impl.delete (fun (m, _) -> Measure.compare i m))
   let lookup head i = Client.read head (Impl.lookup (fun (m, _) -> Measure.compare i m))
 
   let page head compare i j = Client.read head (Impl.page (fun (m, _) ->
@@ -225,8 +229,10 @@ module Imperative = struct
 
     let size head = Client.read_default head Impl.empty Impl.measure_t
 
+    let insert' head ~key value i = Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
+    let insert head ?key value i = put ?key value >>= fun key -> insert' head ~key value i
+
     let delete head i = Client.write_default head Impl.empty (Impl.delete (compare (i + 1)))
-    let insert head ~key value i = Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (compare (i + 1)))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (compare (i + 1)))
 
     let page head i j = Client.read_default head Impl.empty (Impl.page (fun m ->
@@ -242,10 +248,12 @@ module Imperative = struct
 
     let size head = Client.read_default head  Impl.empty(fun x -> Impl.measure_t x >|= snd)
 
-    let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> Measure.compare i m))
-    let insert head ~key value =
+    let insert' head ~key value =
       let m = Measure.measure value in
       Client.write_default head Impl.empty Impl.(insert { Client.value; key; links = [] } (fun (m', _) -> Measure.compare m m'))
+    let insert head ?key value = put ?key value >>= fun key -> insert' head ~key value
+
+    let delete head i = Client.write_default head Impl.empty (Impl.delete (fun (m, _) -> Measure.compare i m))
     let lookup head i = Client.read_default head Impl.empty (Impl.lookup (fun (m, _) -> Measure.compare i m))
 
     let page head compare i j = Client.read_default head Impl.empty (Impl.page (fun (m, _) ->

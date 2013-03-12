@@ -40,8 +40,10 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val front : string -> (Elem.t * string) Lwt.t
   val rear : string -> (Elem.t * string) Lwt.t
 
+  val insert : string -> ?key:string -> Elem.t -> int -> string Lwt.t
+  val insert' : string -> key:string -> Elem.t -> int -> string Lwt.t
+
   val delete : string -> int -> string Lwt.t
-  val insert : string -> key:string -> Elem.t -> int -> string Lwt.t
   val lookup : string -> int -> Elem.t Lwt.t
 
   val page : string -> int -> int -> Elem.t list Lwt.t
@@ -67,8 +69,10 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
   val front : string -> (Elem.t * string) Lwt.t
   val rear : string -> (Elem.t * string) Lwt.t
 
+  val insert : string -> ?key:string -> Elem.t -> string Lwt.t
+  val insert' : string -> key:string -> Elem.t -> string Lwt.t
+
   val delete : string -> Measure.Monoid.t -> string Lwt.t
-  val insert : string -> key:string -> Elem.t -> string Lwt.t
   val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
   val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
@@ -132,8 +136,10 @@ module Imperative : sig
     val front : string -> Elem.t  Lwt.t
     val rear : string -> Elem.t Lwt.t
 
+    val insert : string -> ?key:string -> Elem.t -> int -> unit Lwt.t
+    val insert' : string -> key:string -> Elem.t -> int -> unit Lwt.t
+
     val delete : string -> int -> unit Lwt.t
-    val insert : string -> key:string -> Elem.t -> int -> unit Lwt.t
     val lookup : string -> int -> Elem.t Lwt.t
 
     val page : string -> int -> int -> Elem.t list Lwt.t
@@ -158,8 +164,10 @@ module Imperative : sig
     val front : string -> Elem.t Lwt.t
     val rear : string -> Elem.t Lwt.t
 
+    val insert : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val insert' : string -> key:string -> Elem.t -> unit Lwt.t
+
     val delete : string -> Measure.Monoid.t -> unit Lwt.t
-    val insert : string -> key:string -> Elem.t -> unit Lwt.t
     val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
 
     val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
