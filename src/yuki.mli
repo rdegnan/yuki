@@ -16,7 +16,6 @@ module RandomAccessList(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
   val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
 end
 
@@ -54,8 +53,9 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
   val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+
+  val get : string -> Elem.t Lwt.t
   val put : ?key:string -> Elem.t -> string Lwt.t
 end
 
@@ -83,8 +83,9 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
 
   val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
   val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
   val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+
+  val get : string -> Elem.t Lwt.t
   val put : ?key:string -> Elem.t -> string Lwt.t
 end
 
@@ -115,7 +116,6 @@ module Imperative : sig
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
     val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
   end
 
@@ -150,8 +150,9 @@ module Imperative : sig
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
     val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+
+    val get : string -> Elem.t Lwt.t
     val put : ?key:string -> Elem.t -> string Lwt.t
   end
 
@@ -178,8 +179,9 @@ module Imperative : sig
 
     val fold_left : string -> ('a -> Elem.t -> 'a Lwt.t) -> 'a -> 'a Lwt.t
     val fold_right : string -> (Elem.t -> 'a -> 'a Lwt.t) -> 'a -> 'a Lwt.t
-
     val map : string -> (Elem.t -> 'a Lwt.t) -> 'a list Lwt.t
+
+    val get : string -> Elem.t Lwt.t
     val put : ?key:string -> Elem.t -> string Lwt.t
   end
 

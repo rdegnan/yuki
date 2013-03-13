@@ -73,8 +73,9 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
 
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
-
   let map head f = Client.read head (Impl.map f)
+
+  let get key = Impl.get_elem key
   let put ?key x = Impl.Client.put ?key x []
 end
 
@@ -219,8 +220,9 @@ module Imperative = struct
 
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
-
     let map head f = Client.read_default head Impl.empty (Impl.map f)
+
+    let get key = Impl.get_elem key
     let put ?key x = Impl.Client.put ?key x []
   end
 
