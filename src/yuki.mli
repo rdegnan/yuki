@@ -44,6 +44,7 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
 
   val delete : string -> int -> string Lwt.t
   val lookup : string -> int -> Elem.t Lwt.t
+  (* lookup and delete raise Subscript if index is out of bounds *)
 
   val page : string -> int -> int -> Elem.t list Lwt.t
   val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
@@ -74,6 +75,7 @@ module OrderedSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_ma
 
   val delete : string -> Measure.Monoid.t -> string Lwt.t
   val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
+  (* lookup and delete raise Subscript if index is out of bounds *)
 
   val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
   val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
@@ -141,6 +143,7 @@ module Imperative : sig
 
     val delete : string -> int -> unit Lwt.t
     val lookup : string -> int -> Elem.t Lwt.t
+    (* lookup and delete raise Subscript if index is out of bounds *)
 
     val page : string -> int -> int -> Elem.t list Lwt.t
     val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t
@@ -170,6 +173,7 @@ module Imperative : sig
 
     val delete : string -> Measure.Monoid.t -> unit Lwt.t
     val lookup : string -> Measure.Monoid.t -> Elem.t Lwt.t
+    (* lookup and delete raise Subscript if index is out of bounds *)
 
     val page : string -> ('a -> Measure.Monoid.t -> int) -> 'a -> 'a -> Elem.t list Lwt.t
     val take_while : string -> ('a -> Elem.t -> ('a * 'b) option Lwt.t) -> 'a -> 'b list Lwt.t

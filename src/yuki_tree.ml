@@ -6,6 +6,7 @@ open Yuki_tree_j
 open Yojson.Safe
 
 exception Empty
+exception Subscript
 
 module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure with type t = Elem.t) = struct
   module Client = Client.Make(Conn)(Elem)
@@ -861,7 +862,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
       if f i' = 0 then return ([], a, []) else
-        raise_lwt Not_found
+        raise_lwt Subscript
     | `Two (_, a, b) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -869,7 +870,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
         if f i'' = 0 then return ([a], b, []) else
-          raise_lwt Not_found
+          raise_lwt Subscript
     | `Three (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -880,7 +881,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           lwt c' = get_elem c in
           let i''' = Monoid.combine i'' (measure c') in
           if f i''' = 0 then return ([a; b], c, []) else
-            raise_lwt Not_found
+            raise_lwt Subscript
     | `Four (_, a, b, c, d) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -894,14 +895,14 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
             lwt d' = get_elem d in
             let i'''' = Monoid.combine i''' (measure d') in
             if f i'''' = 0 then return ([a; b; c], d, []) else
-              raise_lwt Not_found
+              raise_lwt Subscript
 
   let find f = function
     | `Nil -> raise_lwt Empty
     | `Single x ->
       lwt x' = get_elem x in
       if f (measure x') = 0 then return (`Nil, x, `Nil) else
-        raise_lwt Not_found
+        raise_lwt Subscript
     | `Deep (_, pr, m, sf) ->
       let vpr = measure_digit pr in
       lwt m' = get_fg reader m in
@@ -929,7 +930,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         lwt (l, _, r) = find f t in
         append l r
       else
-        raise_lwt Not_found
+        raise_lwt Subscript
 
   (*---------------------------------*)
   (*            lookup               *)
@@ -963,7 +964,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
       if f i' = 0 then return a' else
-        raise_lwt Not_found
+        raise_lwt Subscript
     | `Two (_, a, b) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -971,7 +972,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
         if f i'' = 0 then return b' else
-          raise_lwt Not_found
+          raise_lwt Subscript
     | `Three (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -982,7 +983,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           lwt c' = get_elem c in
           let i''' = Monoid.combine i'' (measure c') in
           if f i''' = 0 then return c' else
-            raise_lwt Not_found
+            raise_lwt Subscript
     | `Four (_, a, b, c, d) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -996,7 +997,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
             lwt d' = get_elem d in
             let i'''' = Monoid.combine i''' (measure d') in
             if f i'''' = 0 then return d' else
-              raise_lwt Not_found
+              raise_lwt Subscript
 
   let lookup_node_node f i = function
     | `Node2 (_, a, b) ->
@@ -1019,7 +1020,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
         lwt b' = get_elem b in
         let i'' = Monoid.combine i' (measure b') in
         if f i'' = 0 then return b' else
-          raise_lwt Not_found
+          raise_lwt Subscript
     | `Node3 (_, a, b, c) ->
       lwt a' = get_elem a in
       let i' = Monoid.combine i (measure a') in
@@ -1030,7 +1031,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
           lwt c' = get_elem c in
           let i''' = Monoid.combine i'' (measure c') in
           if f i''' = 0 then return c' else
-            raise_lwt Not_found
+            raise_lwt Subscript
 
   let rec lookup_aux : 'a. 'a node Json.reader -> (Monoid.t -> int) -> Monoid.t -> 'a node fg -> (Monoid.t * 'a node) Lwt.t = fun reader f i -> function
     | `Nil -> raise_lwt Empty
@@ -1056,7 +1057,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
     | `Single x ->
       lwt x' = get_elem x in
       if f (measure x') = 0 then return x' else
-        raise_lwt Not_found
+        raise_lwt Subscript
     | `Deep (_, pr, m, sf) ->
       let i = measure_digit pr in
       if f i <= 0 then lookup_digit f Monoid.zero pr else
