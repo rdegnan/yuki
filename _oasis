@@ -7,6 +7,9 @@ License:     BSD3
 Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:  ocamlbuild
 
+PreBuildCommand: atdgen src/yuki.atd -j -j-std; atdgen src/yuki.atd -t; atdgen src/yuki_tree.atd -j -j-std; atdgen src/yuki_tree.atd -t
+PostCleanCommand: rm -f src/{yuki,yuki_tree}_{j,t}.*
+
 Library "yuki"
   Path: src
   Modules: Yuki, Yuki_make

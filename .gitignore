@@ -1,0 +1,8 @@
+src/yuki_j.*
+src/yuki_t.*
+src/yuki_tree_j.*
+src/yuki_tree_t.*
+_build
+setup.log
+setup.data
+
