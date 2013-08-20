@@ -163,7 +163,7 @@ module Make(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Measure 
       | lst -> return lst)
 
   let rec take_while_aux : 'acc 'a. 'a Json.reader -> ('acc -> 'b list -> 'a -> ('acc option * 'b list) Lwt.t) -> 'acc -> 'b list -> 'a fg -> ('acc option * 'b list) Lwt.t = fun reader f acc lst -> function
-    | `Nil -> return (None, lst)
+    | `Nil -> return (Some acc, lst)
     | `Single x -> f acc lst x
     | `Deep (_, pr, m, sf) ->
       let reader' = read_node reader in
