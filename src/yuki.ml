@@ -59,8 +59,15 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
 
   let init () = Client.put Impl.empty []
 
-  let cons head ~key value = Client.write head Impl.(cons { Client.value; key; links = [] })
-  let snoc head ~key value = Client.write head Impl.(snoc { Client.value; key; links = [] })
+  let get key = Impl.get_elem key
+  let put ?key x = Impl.Client.put ?key x []
+
+  let cons' head ~key value = Client.write head Impl.(cons { Client.value; key; links = [] })
+  let cons head ?key value = put ?key value >>= fun key -> cons' head ~key value
+
+  let snoc' head ~key value = Client.write head Impl.(snoc { Client.value; key; links = [] })
+  let snoc head ?key value = put ?key value >>= fun key -> snoc' head ~key value
+
   let head head = Client.read head Impl.head
   let last head = Client.read head Impl.last
 
@@ -74,9 +81,6 @@ module FingerTree(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem)(Measure:Yuki_make.Me
   let fold_left head f x = Client.read head (Impl.fold_left f x)
   let fold_right head f x = Client.read head (Impl.fold_right f x)
   let map head f = Client.read head (Impl.map f)
-
-  let get key = Impl.get_elem key
-  let put ?key x = Impl.Client.put ?key x []
 end
 
 module Size(Elem:Yuki_make.Elem) = struct
@@ -206,8 +210,15 @@ module Imperative = struct
       let bucket = Elem.bucket
     end)
 
-    let cons head ~key value = Client.write_default head Impl.empty Impl.(cons { Client.value; key; links = [] })
-    let snoc head ~key value = Client.write_default head Impl.empty Impl.(snoc { Client.value; key; links = [] })
+    let get key = Impl.get_elem key
+    let put ?key x = Impl.Client.put ?key x []
+
+    let cons' head ~key value = Client.write_default head Impl.empty Impl.(cons { Client.value; key; links = [] })
+    let cons head ?key value = put ?key value >>= fun key -> cons' head ~key value
+
+    let snoc' head ~key value = Client.write_default head Impl.empty Impl.(snoc { Client.value; key; links = [] })
+    let snoc head ?key value = put ?key value >>= fun key -> snoc' head ~key value
+
     let head head = Client.read_default head Impl.empty Impl.head
     let last head = Client.read_default head Impl.empty Impl.last
 
@@ -221,9 +232,6 @@ module Imperative = struct
     let fold_left head f x = Client.read_default head Impl.empty (Impl.fold_left f x)
     let fold_right head f x = Client.read_default head Impl.empty (Impl.fold_right f x)
     let map head f = Client.read_default head Impl.empty (Impl.map f)
-
-    let get key = Impl.get_elem key
-    let put ?key x = Impl.Client.put ?key x []
   end
 
   module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) = struct

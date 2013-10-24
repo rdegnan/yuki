@@ -31,8 +31,12 @@ module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
   val init : unit -> string Lwt.t
   val size : string -> int Lwt.t
 
-  val cons : string -> key:string -> Elem.t -> string Lwt.t
-  val snoc : string -> key:string -> Elem.t -> string Lwt.t
+  val cons : string -> ?key:string -> Elem.t -> string Lwt.t
+  val cons' : string -> key:string -> Elem.t -> string Lwt.t
+
+  val snoc : string -> ?key:string -> Elem.t -> string Lwt.t
+  val snoc' : string -> key:string -> Elem.t -> string Lwt.t
+
   val head : string -> Elem.t Lwt.t
   val last : string -> Elem.t Lwt.t
 
@@ -130,8 +134,12 @@ module Imperative : sig
   module RandomAccessSequence(Conn:Yuki_make.Conn)(Elem:Yuki_make.Elem) : sig
     val size : string -> int Lwt.t
 
-    val cons : string -> key:string -> Elem.t -> unit Lwt.t
-    val snoc : string -> key:string -> Elem.t -> unit Lwt.t
+    val cons : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val cons' : string -> key:string -> Elem.t -> unit Lwt.t
+
+    val snoc : string -> ?key:string -> Elem.t -> unit Lwt.t
+    val snoc' : string -> key:string -> Elem.t -> unit Lwt.t
+
     val head : string -> Elem.t Lwt.t
     val last : string -> Elem.t Lwt.t
 
