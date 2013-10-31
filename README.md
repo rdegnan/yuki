@@ -1,7 +1,9 @@
-yuki
+Yuki
 ====
 
-Functional data structures for Riak
+[For much more information, check out the RICON presentation!](https://speakerdeck.com/rdegnan/yuki-functional-data-structures-for-riak)
+
+Riak is extremely fast as a key-value store, but querying on secondary indexes or running MapReduce jobs can result in unpredictable latency. In practice, developers often require richer means of querying data in real-time. Yuki is an OCaml library that implements various functional data structures in Riak, giving users the ability to interact with their data as if it were a queue, a heap, a random access list or a custom data structure. Yuki has been used in practice to achieve extremely low-latency random access, flexible paging, and conditional streaming of Riak data.
 
 Installation
 ------------
